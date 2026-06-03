@@ -32,7 +32,7 @@
 - 管理员可以新增题目
 - 管理员可以删除题目
 - 题目、样例测试用例、隐藏测试用例持久化存储到 MySQL
-- 系统可在 Ubuntu 22.04 + g++ + MySQL 8 环境运行
+- 系统可在 Ubuntu 24.04 + g++ + MySQL 8 环境运行
 - 前端第三方编辑器资源本地化，不依赖公网 CDN
 
 ---
@@ -388,7 +388,7 @@ int main() {
 - 2 核 CPU
 - 2 GB 内存
 - 20 GB 磁盘
-- Ubuntu 22.04
+- Ubuntu 24.04
 - MySQL 8
 - g++
 
@@ -416,13 +416,11 @@ int main() {
 
 验收环境：
 
-- Ubuntu 22.04
+- Ubuntu 24.04
 - g++
 - MySQL 8
 - cpp-httplib
 - 本地化前端静态资源
-
----
 
 ## 6. 架构设计
 
@@ -481,6 +479,133 @@ server
     ├── js
     └── editor assets
 ```
+
+### 6.3 项目目录结构
+
+第一版项目建议采用单体仓库结构，后端、前端静态资源、数据库脚本和部署脚本放在同一仓库内。
+
+```text
+oj-project/
+├── SPEC.md
+├── README.md
+├── Makefile
+├── config/
+│   └── app.example.conf
+├── scripts/
+│   ├── build.sh
+│   ├── run.sh
+│   └── init_db.sh
+├── sql/
+│   ├── schema.sql
+│   └── seed.sql
+├── third_party/
+│   ├── httplib/
+│   │   └── httplib.h
+│   └── json/
+│       └── json.hpp
+├── src/
+│   ├── main.cpp
+│   ├── app/
+│   │   ├── server.cpp
+│   │   └── server.h
+│   ├── api/
+│   │   ├── problem_api.cpp
+│   │   ├── problem_api.h
+│   │   ├── submit_api.cpp
+│   │   ├── submit_api.h
+│   │   ├── user_api.cpp
+│   │   ├── user_api.h
+│   │   ├── admin_api.cpp
+│   │   └── admin_api.h
+│   ├── auth/
+│   │   ├── session.cpp
+│   │   ├── session.h
+│   │   ├── password.cpp
+│   │   └── password.h
+│   ├── config/
+│   │   ├── config.cpp
+│   │   └── config.h
+│   ├── db/
+│   │   ├── mysql_client.cpp
+│   │   ├── mysql_client.h
+│   │   ├── user_repository.cpp
+│   │   ├── user_repository.h
+│   │   ├── admin_repository.cpp
+│   │   ├── admin_repository.h
+│   │   ├── problem_repository.cpp
+│   │   ├── problem_repository.h
+│   │   ├── testcase_repository.cpp
+│   │   └── testcase_repository.h
+│   ├── judge/
+│   │   ├── judge_service.cpp
+│   │   ├── judge_service.h
+│   │   ├── compiler.cpp
+│   │   ├── compiler.h
+│   │   ├── runner.cpp
+│   │   ├── runner.h
+│   │   ├── comparator.cpp
+│   │   ├── comparator.h
+│   │   ├── judge_queue.cpp
+│   │   └── judge_queue.h
+│   ├── model/
+│   │   ├── user.h
+│   │   ├── admin.h
+│   │   ├── problem.h
+│   │   └── testcase.h
+│   └── util/
+│       ├── json_response.cpp
+│       ├── json_response.h
+│       ├── file_util.cpp
+│       ├── file_util.h
+│       ├── process_util.cpp
+│       └── process_util.h
+├── public/
+│   ├── index.html
+│   ├── problem.html
+│   ├── login.html
+│   ├── register.html
+│   ├── admin/
+│   │   ├── login.html
+│   │   ├── index.html
+│   │   └── new-problem.html
+│   ├── css/
+│   │   ├── base.css
+│   │   ├── layout.css
+│   │   └── admin.css
+│   ├── js/
+│   │   ├── api.js
+│   │   ├── auth.js
+│   │   ├── problem-list.js
+│   │   ├── problem-detail.js
+│   │   ├── editor.js
+│   │   ├── storage.js
+│   │   └── admin.js
+│   └── vendor/
+│       └── codemirror/
+├── var/
+│   └── judge_tmp/
+└── tests/
+    ├── judge/
+    ├── db/
+    └── api/
+```
+
+目录职责说明：
+
+- `config/`: 存放配置文件模板，不提交真实数据库密码。
+- `scripts/`: 存放构建、启动、初始化数据库等脚本。
+- `sql/`: 存放建表 SQL 和初始化数据 SQL。
+- `third_party/`: 存放 cpp-httplib、JSON 库等头文件依赖。
+- `src/api/`: HTTP API 路由与请求处理。
+- `src/auth/`: 普通用户、管理员登录态与密码处理。
+- `src/db/`: MySQL 访问封装和 Repository。
+- `src/judge/`: 编译、运行、比较、并发限制等判题逻辑。
+- `src/model/`: 数据模型定义。
+- `src/util/`: JSON 响应、文件、进程等通用工具。
+- `public/`: 前端 HTML/CSS/JS 和本地化编辑器资源。
+- `public/vendor/`: 本地第三方前端依赖，例如 CodeMirror。
+- `var/judge_tmp/`: 判题临时目录，运行时创建并定期清理。
+- `tests/`: 后续测试代码目录，第一版可按风险逐步补充。
 
 ---
 
@@ -1012,7 +1137,7 @@ all passed -> passed
 - [ ] 编写构建脚本
 - [ ] 编写启动脚本
 - [ ] 编写数据库初始化脚本
-- [ ] 在 Ubuntu 22.04 验证
+- [ ] 在 Ubuntu 24.04 验证
 - [ ] 验证 g++ 编译运行
 - [ ] 验证 MySQL 连接
 - [ ] 验证前端静态资源本地加载
@@ -1028,7 +1153,7 @@ all passed -> passed
 
 在以下环境中可以运行：
 
-- Ubuntu 22.04
+- Ubuntu 24.04
 - g++
 - MySQL 8
 - cpp-httplib
