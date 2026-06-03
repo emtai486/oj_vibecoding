@@ -1057,8 +1057,8 @@ all passed -> passed
 ## 12. TODO 清单
 
 ### 12.1 初始化
-
-- [ ] 创建项目目录结构
+code
+- [x] 创建项目目录结构
 - [ ] 引入 cpp-httplib
 - [ ] 配置 MySQL 连接
 - [ ] 准备静态资源目录
