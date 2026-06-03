@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>管理后台</title>
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/admin.css">
+  </head>
+  <body>
+    <header class="admin-topbar">
+      <a class="brand" href="/admin/index.html">OJ Admin</a>
+      <nav class="nav">
+        <a href="/admin/new-problem.html">新增题目</a>
+        <a href="/">返回前台</a>
+      </nav>
+    </header>
+
+    <main class="admin-page">
+      <section class="panel">
+        <div class="panel-header">
+          <h1>题目管理</h1>
+          <a class="button-link" href="/admin/new-problem.html">新增题目</a>
+        </div>
+        <table class="problem-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>标题</th>
+              <th>难度</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="admin-problem-list">
+            <tr>
+              <td colspan="4" class="muted">正在加载</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin.js"></script>
+  </body>
+</html>

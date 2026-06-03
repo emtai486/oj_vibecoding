@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OJ 题目详情</title>
+    <link rel="stylesheet" href="/vendor/codemirror/codemirror.css">
+    <link rel="stylesheet" href="/vendor/codemirror/theme/material-darker.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/layout.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/">OJ</a>
+      <nav class="nav">
+        <a href="/login.html">登录</a>
+        <a href="/admin/login.html">管理后台</a>
+      </nav>
+    </header>
+
+    <main class="workspace">
+      <section class="problem-pane">
+        <h1 id="problem-title">题目</h1>
+        <div id="problem-meta" class="muted"></div>
+        <article id="problem-content" class="statement"></article>
+      </section>
+
+      <section class="editor-pane">
+        <textarea id="code-editor"></textarea>
+        <div class="actions">
+          <button id="submit-code" type="button">提交</button>
+          <span id="submit-result" class="muted"></span>
+        </div>
+      </section>
+    </main>
+
+    <script src="/vendor/codemirror/codemirror.js"></script>
+    <script src="/vendor/codemirror/mode/clike/clike.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/storage.js"></script>
+    <script src="/js/editor.js"></script>
+    <script src="/js/problem-detail.js"></script>
+  </body>
+</html>

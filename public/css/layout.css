@@ -1,0 +1,127 @@
+.page,
+.admin-page {
+  width: min(1120px, calc(100% - 32px));
+  margin: 24px auto;
+}
+
+.panel,
+.form-panel,
+.problem-form,
+.admin-form {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.panel {
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.problem-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.problem-table th,
+.problem-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 20px;
+  text-align: left;
+}
+
+.problem-table th {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.workspace {
+  height: calc(100vh - 56px);
+  display: grid;
+  grid-template-columns: minmax(320px, 42%) minmax(360px, 1fr);
+}
+
+.problem-pane,
+.editor-pane {
+  min-width: 0;
+  overflow: auto;
+  padding: 24px;
+}
+
+.problem-pane {
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.editor-pane {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 14px;
+}
+
+.statement {
+  margin-top: 20px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.CodeMirror {
+  height: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.form-page {
+  min-height: calc(100vh - 56px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.form-panel {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+}
+
+@media (max-width: 760px) {
+  .topbar,
+  .admin-topbar {
+    padding: 0 16px;
+  }
+
+  .nav {
+    gap: 10px;
+  }
+
+  .workspace {
+    height: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .problem-pane {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .editor-pane {
+    min-height: 560px;
+  }
+}

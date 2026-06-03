@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>新增题目</title>
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/admin.css">
+  </head>
+  <body>
+    <header class="admin-topbar">
+      <a class="brand" href="/admin/index.html">OJ Admin</a>
+      <nav class="nav">
+        <a href="/admin/index.html">题目管理</a>
+      </nav>
+    </header>
+
+    <main class="admin-page">
+      <form id="new-problem-form" class="problem-form">
+        <h1>新增题目</h1>
+        <label>标题<input name="title" required></label>
+        <label>难度
+          <select name="difficulty">
+            <option value="easy">easy</option>
+            <option value="medium">medium</option>
+            <option value="hard">hard</option>
+          </select>
+        </label>
+        <label>题目描述<textarea name="description" rows="8" required></textarea></label>
+        <label>输入格式<textarea name="input_format" rows="4"></textarea></label>
+        <label>输出格式<textarea name="output_format" rows="4"></textarea></label>
+        <label>样例输入<textarea name="sample_input" rows="4"></textarea></label>
+        <label>样例输出<textarea name="sample_output" rows="4"></textarea></label>
+        <label>隐藏测试用例 JSON<textarea name="hidden_testcases" rows="8"></textarea></label>
+        <div class="form-grid">
+          <label>时间限制 ms<input name="time_limit_ms" type="number" min="100" value="1000"></label>
+          <label>内存限制 KB<input name="memory_limit_kb" type="number" min="1024" value="131072"></label>
+          <label>比较模式
+            <select name="compare_mode">
+              <option value="strict">strict</option>
+              <option value="float_1">float_1</option>
+            </select>
+          </label>
+        </div>
+        <button type="submit">保存</button>
+        <p id="new-problem-message" class="muted"></p>
+      </form>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin.js"></script>
+  </body>
+</html>

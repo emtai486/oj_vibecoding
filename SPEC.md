@@ -1059,11 +1059,11 @@ all passed -> passed
 ### 12.1 初始化
 code
 - [x] 创建项目目录结构
-- [ ] 引入 cpp-httplib
-- [ ] 配置 MySQL 连接
-- [ ] 准备静态资源目录
-- [ ] 下载 CodeMirror 或 Monaco 到本地
-- [ ] 编写 README
+- [x] 引入 cpp-httplib
+- [x] 配置 MySQL 连接
+- [x] 准备静态资源目录
+- [x] 下载 CodeMirror 或 Monaco 到本地
+- [x] 编写 README
 
 ### 12.2 数据库
 

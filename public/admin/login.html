@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>管理员登录</title>
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/admin.css">
+  </head>
+  <body>
+    <main class="admin-login">
+      <form id="admin-login-form" class="admin-form">
+        <h1>管理员登录</h1>
+        <label>
+          用户名
+          <input name="username" autocomplete="username" required>
+        </label>
+        <label>
+          密码
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit">登录</button>
+        <p id="admin-message" class="muted"></p>
+      </form>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/admin.js"></script>
+  </body>
+</html>
