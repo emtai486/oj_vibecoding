@@ -7,6 +7,7 @@
 - 已创建 SPEC 6.3 中的项目目录结构。
 - 已引入本地 `third_party/httplib/httplib.h`。
 - 已提供 MySQL 配置模板和基础连接封装。
+- 已提供 MySQL 建表 SQL、开发种子数据、测试用户、管理员账号和示例题目。
 - 已准备前端静态资源目录，并将 CodeMirror 浏览器资源放入 `public/vendor/codemirror/`。
 
 ## 依赖
@@ -64,4 +65,20 @@ mysql.connect_timeout_seconds=5
 ./build/oj_server --check-db config/app.conf
 ```
 
-当前代码只完成初始化阶段的依赖、配置和静态资源准备，HTTP API、数据库表结构、判题流程会按 `SPEC.md` 后续 TODO 继续实现。
+## 数据库初始化
+
+建表和种子数据脚本位于 `sql/`：
+
+```bash
+mysql -u oj_user -p oj < sql/schema.sql
+mysql -u oj_user -p oj < sql/seed.sql
+```
+
+开发种子账号：
+
+```text
+普通用户: user1 / password
+管理员: admin / password
+```
+
+当前代码已完成 `SPEC.md` 12.1 初始化和 12.2 数据库脚本。HTTP API、后端基础和判题流程会按后续 TODO 继续实现。

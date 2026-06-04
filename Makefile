@@ -1,7 +1,8 @@
 CXX ?= g++
 BUILD_DIR := build
 TARGET := $(BUILD_DIR)/oj_server
-TEST_TARGET := $(BUILD_DIR)/tests/initialization_test
+INIT_TEST_TARGET := $(BUILD_DIR)/tests/initialization_test
+DB_SQL_TEST_TARGET := $(BUILD_DIR)/tests/database_sql_test
 
 MYSQL_CFLAGS := $(shell mysql_config --cflags)
 MYSQL_LIBS := $(shell mysql_config --libs)
@@ -28,12 +29,17 @@ $(BUILD_DIR)/%.o: %.cpp
 check-db: $(TARGET)
 	./$(TARGET) --check-db config/app.example.conf
 
-test: $(TEST_TARGET)
-	./$(TEST_TARGET) .
+test: $(INIT_TEST_TARGET) $(DB_SQL_TEST_TARGET)
+	./$(INIT_TEST_TARGET) .
+	./$(DB_SQL_TEST_TARGET) .
 
-$(TEST_TARGET): tests/unit/initialization_test.cpp src/config/config.cpp src/db/mysql_client.cpp
+$(INIT_TEST_TARGET): tests/unit/initialization_test.cpp src/config/config.cpp src/db/mysql_client.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -o $@ $(LDLIBS)
+
+$(DB_SQL_TEST_TARGET): tests/unit/database_sql_test.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $^ -o $@
 
 clean:
 	rm -rf $(BUILD_DIR)

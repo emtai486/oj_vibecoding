@@ -1067,14 +1067,14 @@ code
 
 ### 12.2 数据库
 
-- [ ] 编写 MySQL 建表 SQL
-- [ ] 创建 users 表
-- [ ] 创建 admins 表
-- [ ] 创建 problems 表
-- [ ] 创建 testcases 表
-- [ ] 编写初始化普通用户测试账号 SQL，或实现普通用户注册
-- [ ] 编写初始化管理员账号 SQL
-- [ ] 准备示例题目数据
+- [x] 编写 MySQL 建表 SQL
+- [x] 创建 users 表
+- [x] 创建 admins 表
+- [x] 创建 problems 表
+- [x] 创建 testcases 表
+- [x] 编写初始化普通用户测试账号 SQL，或实现普通用户注册
+- [x] 编写初始化管理员账号 SQL
+- [x] 准备示例题目数据
 
 ### 12.3 后端基础
 
