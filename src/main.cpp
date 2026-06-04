@@ -1,7 +1,6 @@
+#include "app/server.h"
 #include "config/config.h"
 #include "db/mysql_client.h"
-
-#include <httplib.h>
 
 #include <exception>
 #include <iostream>
@@ -42,11 +41,6 @@ int main(int argc, char* argv[]) {
   try {
     const auto config = oj::config::load_config(config_path);
 
-    httplib::Server server;
-    server.Get("/health", [](const httplib::Request&, httplib::Response& res) {
-      res.set_content("ok\n", "text/plain; charset=utf-8");
-    });
-
     if (check_db) {
       oj::db::MySqlClient client(config.mysql);
       std::string error;
@@ -60,10 +54,12 @@ int main(int argc, char* argv[]) {
       return 0;
     }
 
-    std::cout << "config loaded from " << config_path << '\n'
-              << "cpp-httplib initialized; health route registered for "
-              << config.server.host << ':' << config.server.port << '\n'
-              << "use --check-db [config_path] to validate MySQL connectivity\n";
+    std::cout << "config loaded from " << config_path << '\n';
+    if (!oj::app::run_server(config)) {
+      std::cerr << "failed to start server on " << config.server.host << ':'
+                << config.server.port << '\n';
+      return 2;
+    }
     return 0;
   } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';

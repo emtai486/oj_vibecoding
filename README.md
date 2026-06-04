@@ -8,6 +8,7 @@
 - 已引入本地 `third_party/httplib/httplib.h`。
 - 已提供 MySQL 配置模板和基础连接封装。
 - 已提供 MySQL 建表 SQL、开发种子数据、测试用户、管理员账号和示例题目。
+- 已实现 cpp-httplib 服务启动、静态文件挂载、统一 JSON 响应和基础错误处理。
 - 已准备前端静态资源目录，并将 CodeMirror 浏览器资源放入 `public/vendor/codemirror/`。
 
 ## 依赖
@@ -32,6 +33,26 @@ make
 ```text
 build/oj_server
 ```
+
+## 测试
+
+```bash
+make test
+```
+
+如需运行 GoogleTest 版本的单元测试，先安装 `libgtest-dev`，再执行：
+
+```bash
+make test-gtest
+```
+
+## 启动
+
+```bash
+./build/oj_server config/app.conf
+```
+
+默认监听 `server.host` 和 `server.port`，并从 `public/` 提供静态页面。
 
 ## 配置
 
@@ -81,4 +102,4 @@ mysql -u oj_user -p oj < sql/seed.sql
 管理员: admin / password
 ```
 
-当前代码已完成 `SPEC.md` 12.1 初始化和 12.2 数据库脚本。HTTP API、后端基础和判题流程会按后续 TODO 继续实现。
+当前代码已完成 `SPEC.md` 12.1 初始化、12.2 数据库脚本和 12.3 后端基础。具体业务 API、登录态和判题流程会按后续 TODO 继续实现。
