@@ -1,5 +1,6 @@
 #include "app/server.h"
 
+#include "api/admin_api.h"
 #include "api/problem_api.h"
 #include "api/submit_api.h"
 #include "api/user_api.h"
@@ -99,6 +100,7 @@ std::unique_ptr<httplib::Server> create_server(const config::AppConfig& config,
   api::register_problem_routes(*server, config.mysql);
   api::register_user_routes(*server, config.mysql, sessions);
   api::register_submit_routes(*server, config.mysql, sessions);
+  api::register_admin_routes(*server, config.mysql, sessions);
   return server;
 }
 

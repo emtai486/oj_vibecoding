@@ -106,6 +106,38 @@ TEST(UserSessionTest, ManagesCookieBackedSessionLifecycle) {
   EXPECT_FALSE(sessions.find_user_session(session_id).has_value());
 }
 
+TEST(AdminSessionTest, UsesSeparateCookieBackedSessionLifecycle) {
+  oj::auth::SessionStore sessions;
+  const std::string session_id = sessions.create_admin_session(3, "admin");
+
+  const auto admin = sessions.find_admin_session(session_id);
+  ASSERT_TRUE(admin.has_value());
+  EXPECT_EQ(admin->id, std::uint64_t{3});
+  EXPECT_EQ(admin->username, "admin");
+
+  httplib::Request request;
+  request.set_header("Cookie", "oj_admin_session=" + session_id);
+  EXPECT_EQ(oj::auth::cookie_value(request, "oj_admin_session"), session_id);
+
+  httplib::Response login_response;
+  oj::auth::set_admin_session_cookie(login_response, session_id);
+  const std::string login_cookie =
+      login_response.get_header_value("Set-Cookie");
+  expect_contains(login_cookie, "oj_admin_session=" + session_id);
+  expect_contains(login_cookie, "HttpOnly");
+  expect_contains(login_cookie, "SameSite=Lax");
+
+  httplib::Response logout_response;
+  oj::auth::clear_admin_session_cookie(logout_response);
+  expect_contains(logout_response.get_header_value("Set-Cookie"),
+                  "oj_admin_session=");
+  expect_contains(logout_response.get_header_value("Set-Cookie"),
+                  "Max-Age=0");
+
+  sessions.destroy_admin_session(session_id);
+  EXPECT_FALSE(sessions.find_admin_session(session_id).has_value());
+}
+
 TEST(SubmitApiContractTest, RejectsAnonymousSubmitBeforeParsingOrDatabase) {
   const std::string submit_api =
       read_text(project_root / "src/api/submit_api.cpp");
@@ -203,6 +235,37 @@ TEST(FrontendUserFeatureTest, ImplementsProblemPagesAndSolvedStateContract) {
   expect_contains(storage, R"(solved[problemId] = "passed")");
 }
 
+TEST(AdminFeatureContractTest, ImplementsAdminApiAndFrontendFlow) {
+  const std::string server = read_text(project_root / "src/app/server.cpp");
+  const std::string admin_api =
+      read_text(project_root / "src/api/admin_api.cpp");
+  const std::string admin_repository =
+      read_text(project_root / "src/db/admin_repository.cpp");
+  const std::string problem_repository =
+      read_text(project_root / "src/db/problem_repository.cpp");
+  const std::string admin_js = read_text(project_root / "public/js/admin.js");
+  const std::string api_js = read_text(project_root / "public/js/api.js");
+
+  expect_contains(server, "register_admin_routes");
+  expect_contains(admin_repository, "FROM admins WHERE username");
+  expect_contains(admin_api, R"(/api/admin/login)");
+  expect_contains(admin_api, R"(/api/admin/logout)");
+  expect_contains(admin_api, R"(/api/admin/problems)");
+  expect_contains(admin_api, "oj_admin_session");
+  expect_contains(admin_api, "create_admin_session");
+  expect_contains(admin_api, "create_with_testcases");
+  expect_contains(admin_api, "delete_by_id");
+  expect_contains(problem_repository, "START TRANSACTION");
+  expect_contains(problem_repository, "INSERT INTO testcases");
+  expect_contains(problem_repository, "DELETE FROM problems WHERE id");
+  expect_contains(api_js, "delete(path)");
+  expect_contains(admin_js, "/api/admin/me");
+  expect_contains(admin_js, "/api/admin/login");
+  expect_contains(admin_js, "/api/admin/problems");
+  expect_contains(admin_js, "data-delete-id");
+  expect_contains(admin_js, "hidden_testcases");
+}
+
 TEST(SpecProgressTest, MarksOrdinaryUserFeaturesComplete) {
   const std::string spec = read_text(project_root / "SPEC.md");
 
@@ -216,6 +279,9 @@ TEST(SpecProgressTest, MarksOrdinaryUserFeaturesComplete) {
   expect_contains(spec, "- [x] 实现题目列表页面");
   expect_contains(spec, "- [x] 实现题目详情页面");
   expect_contains(spec, "- [x] 实现 localStorage 完成状态");
+  expect_contains(spec, "- [x] 实现 POST /api/admin/login");
+  expect_contains(spec, "- [x] 实现 DELETE /api/admin/problems/{id}");
+  expect_contains(spec, "- [x] 实现管理员后台页");
 }
 
 }  // namespace

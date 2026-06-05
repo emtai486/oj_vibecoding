@@ -11,6 +11,7 @@ namespace oj::auth {
 namespace {
 
 constexpr const char* kUserSessionCookie = "oj_user_session";
+constexpr const char* kAdminSessionCookie = "oj_admin_session";
 
 std::string trim(std::string value) {
   while (!value.empty() &&
@@ -40,7 +41,8 @@ std::string SessionStore::create_user_session(std::uint64_t user_id,
                                               const std::string& username) {
   std::string session_id = random_token();
   std::lock_guard<std::mutex> lock(mutex_);
-  while (user_sessions_.find(session_id) != user_sessions_.end()) {
+  while (user_sessions_.find(session_id) != user_sessions_.end() ||
+         admin_sessions_.find(session_id) != admin_sessions_.end()) {
     session_id = random_token();
   }
   user_sessions_[session_id] = SessionUser{user_id, username};
@@ -60,6 +62,33 @@ std::optional<SessionUser> SessionStore::find_user_session(
 void SessionStore::destroy_user_session(const std::string& session_id) {
   std::lock_guard<std::mutex> lock(mutex_);
   user_sessions_.erase(session_id);
+}
+
+std::string SessionStore::create_admin_session(std::uint64_t admin_id,
+                                               const std::string& username) {
+  std::string session_id = random_token();
+  std::lock_guard<std::mutex> lock(mutex_);
+  while (user_sessions_.find(session_id) != user_sessions_.end() ||
+         admin_sessions_.find(session_id) != admin_sessions_.end()) {
+    session_id = random_token();
+  }
+  admin_sessions_[session_id] = SessionAdmin{admin_id, username};
+  return session_id;
+}
+
+std::optional<SessionAdmin> SessionStore::find_admin_session(
+    const std::string& session_id) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  const auto it = admin_sessions_.find(session_id);
+  if (it == admin_sessions_.end()) {
+    return std::nullopt;
+  }
+  return it->second;
+}
+
+void SessionStore::destroy_admin_session(const std::string& session_id) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  admin_sessions_.erase(session_id);
 }
 
 std::optional<std::string> cookie_value(const httplib::Request& request,
@@ -93,6 +122,19 @@ void set_user_session_cookie(httplib::Response& response,
 void clear_user_session_cookie(httplib::Response& response) {
   response.set_header("Set-Cookie",
                       std::string(kUserSessionCookie) +
+                          "=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
+}
+
+void set_admin_session_cookie(httplib::Response& response,
+                              const std::string& session_id) {
+  response.set_header("Set-Cookie",
+                      std::string(kAdminSessionCookie) + "=" + session_id +
+                          "; Path=/; HttpOnly; SameSite=Lax");
+}
+
+void clear_admin_session_cookie(httplib::Response& response) {
+  response.set_header("Set-Cookie",
+                      std::string(kAdminSessionCookie) +
                           "=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
 }
 

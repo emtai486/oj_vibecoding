@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/css/base.css">
     <link rel="stylesheet" href="/css/admin.css">
   </head>
-  <body>
+  <body data-admin-page>
     <header class="admin-topbar">
       <a class="brand" href="/admin/index.html">OJ Admin</a>
       <nav class="nav">
@@ -31,7 +31,7 @@
         <label>输出格式<textarea name="output_format" rows="4"></textarea></label>
         <label>样例输入<textarea name="sample_input" rows="4"></textarea></label>
         <label>样例输出<textarea name="sample_output" rows="4"></textarea></label>
-        <label>隐藏测试用例 JSON<textarea name="hidden_testcases" rows="8"></textarea></label>
+        <label>隐藏测试用例 JSON<textarea name="hidden_testcases" rows="8" required>[{"input":"10 20\n","expected_output":"30\n"}]</textarea></label>
         <div class="form-grid">
           <label>时间限制 ms<input name="time_limit_ms" type="number" min="100" value="1000"></label>
           <label>内存限制 KB<input name="memory_limit_kb" type="number" min="1024" value="131072"></label>

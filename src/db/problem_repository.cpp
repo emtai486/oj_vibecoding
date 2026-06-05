@@ -98,4 +98,75 @@ bool ProblemRepository::find_by_id(std::uint64_t id,
   return true;
 }
 
+bool ProblemRepository::create_with_testcases(
+    const model::Problem& problem, const std::vector<model::Testcase>& testcases,
+    std::uint64_t* id, std::string* error) {
+  if (!client_.execute("START TRANSACTION", error)) {
+    return false;
+  }
+
+  const std::string insert_problem =
+      "INSERT INTO problems (title, difficulty, description, input_format, "
+      "output_format, sample_input, sample_output, time_limit_ms, "
+      "memory_limit_kb, compare_mode) VALUES ('" +
+      client_.escape(problem.title) + "', '" +
+      client_.escape(problem.difficulty) + "', '" +
+      client_.escape(problem.description) + "', '" +
+      client_.escape(problem.input_format) + "', '" +
+      client_.escape(problem.output_format) + "', '" +
+      client_.escape(problem.sample_input) + "', '" +
+      client_.escape(problem.sample_output) + "', " +
+      std::to_string(problem.time_limit_ms) + ", " +
+      std::to_string(problem.memory_limit_kb) + ", '" +
+      client_.escape(problem.compare_mode) + "')";
+
+  QueryResult result;
+  if (!client_.query(insert_problem, &result, error)) {
+    (void)client_.execute("ROLLBACK", nullptr);
+    return false;
+  }
+
+  const std::uint64_t problem_id = result.insert_id;
+  for (const auto& testcase : testcases) {
+    const std::string insert_testcase =
+        "INSERT INTO testcases (problem_id, `input`, expected_output, "
+        "is_sample) VALUES (" +
+        std::to_string(problem_id) + ", '" + client_.escape(testcase.input) +
+        "', '" + client_.escape(testcase.expected_output) + "', " +
+        (testcase.is_sample ? "TRUE" : "FALSE") + ")";
+    if (!client_.execute(insert_testcase, error)) {
+      (void)client_.execute("ROLLBACK", nullptr);
+      return false;
+    }
+  }
+
+  if (!client_.execute("COMMIT", error)) {
+    (void)client_.execute("ROLLBACK", nullptr);
+    return false;
+  }
+
+  if (id != nullptr) {
+    *id = problem_id;
+  }
+  return true;
+}
+
+bool ProblemRepository::delete_by_id(std::uint64_t id, bool* deleted,
+                                     std::string* error) {
+  if (deleted != nullptr) {
+    *deleted = false;
+  }
+
+  QueryResult result;
+  if (!client_.query("DELETE FROM problems WHERE id = " + std::to_string(id),
+                     &result, error)) {
+    return false;
+  }
+
+  if (deleted != nullptr) {
+    *deleted = result.affected_rows > 0;
+  }
+  return true;
+}
+
 }  // namespace oj::db

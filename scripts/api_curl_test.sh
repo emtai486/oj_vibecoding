@@ -54,6 +54,7 @@ cd "$ROOT_DIR"
 SERVER_PID=""
 TMP_DIR="$(mktemp -d)"
 COOKIE_JAR="$TMP_DIR/cookies.txt"
+ADMIN_COOKIE_JAR="$TMP_DIR/admin-cookies.txt"
 HEADERS_FILE="$TMP_DIR/headers.txt"
 BODY_FILE="$TMP_DIR/body.json"
 trap 'if [[ -n "$SERVER_PID" ]]; then kill "$SERVER_PID" >/dev/null 2>&1 || true; wait "$SERVER_PID" >/dev/null 2>&1 || true; fi; rm -rf "$TMP_DIR"' EXIT
@@ -232,17 +233,18 @@ assert_response "POST /api/submit anonymous" 401 false unauthorized
 curl_request POST /api/user/logout '{}'
 assert_response "POST /api/user/logout anonymous" 200 true "logged out"
 
-curl_request POST /api/admin/login '{"username":"admin","password":"password"}'
-assert_response "POST /api/admin/login currently unimplemented" 404 false "not found"
+curl_request GET /api/admin/me ""
+assert_response "GET /api/admin/me anonymous" 200 true ok
+assert_body_contains "GET /api/admin/me anonymous" '"logged_in":false'
 
 curl_request POST /api/admin/logout '{}'
-assert_response "POST /api/admin/logout currently unimplemented" 404 false "not found"
+assert_response "POST /api/admin/logout anonymous" 200 true "logged out"
 
 curl_request POST /api/admin/problems '{"title":"Example"}'
-assert_response "POST /api/admin/problems currently unimplemented" 404 false "not found"
+assert_response "POST /api/admin/problems anonymous" 401 false unauthorized
 
 curl_request DELETE /api/admin/problems/1 ""
-assert_response "DELETE /api/admin/problems/1 currently unimplemented" 404 false "not found"
+assert_response "DELETE /api/admin/problems/1 anonymous" 401 false unauthorized
 
 if [[ "$MODE" == "basic" ]]; then
   echo "SKIP: DB-backed API checks were not run in --basic mode"
@@ -315,3 +317,55 @@ assert_response "POST /api/user/logout logged in" 200 true "logged out"
 curl_request GET /api/user/me "" -b "$COOKIE_JAR"
 assert_response "GET /api/user/me after logout" 200 true ok
 assert_body_contains "GET /api/user/me after logout" '"logged_in":false'
+
+curl_request POST /api/admin/login '{"username":"admin","password":"wrong-password"}'
+assert_response "POST /api/admin/login wrong password" 401 false "invalid username or password"
+
+curl_request POST /api/admin/login '{"username":"admin","password":"password"}' -c "$ADMIN_COOKIE_JAR"
+assert_response "POST /api/admin/login" 200 true "logged in"
+assert_body_contains "POST /api/admin/login" '"username":"admin"'
+grep -F "oj_admin_session" "$ADMIN_COOKIE_JAR" >/dev/null ||
+  fail "POST /api/admin/login should store oj_admin_session cookie"
+
+curl_request GET /api/admin/me "" -b "$ADMIN_COOKIE_JAR"
+assert_response "GET /api/admin/me logged in" 200 true ok
+assert_body_contains "GET /api/admin/me logged in" '"logged_in":true'
+
+curl_request POST /api/admin/problems '{"title":"Missing fields"}' -b "$ADMIN_COOKIE_JAR"
+assert_response "POST /api/admin/problems invalid" 400 false "invalid problem"
+
+ADMIN_TITLE="Curl Admin Problem $TEST_USER"
+ADMIN_CREATE_BODY="{\"title\":\"$ADMIN_TITLE\",\"difficulty\":\"easy\",\"description\":\"Read two integers and output their sum.\",\"input_format\":\"Two integers.\",\"output_format\":\"One integer.\",\"sample_input\":\"2 3\\n\",\"sample_output\":\"5\\n\",\"time_limit_ms\":1000,\"memory_limit_kb\":131072,\"compare_mode\":\"strict\",\"samples\":[{\"input\":\"2 3\\n\",\"expected_output\":\"5\\n\"}],\"hidden_testcases\":[{\"input\":\"7 8\\n\",\"expected_output\":\"15\\n\"},{\"input\":\"-2 5\\n\",\"expected_output\":\"3\\n\"}]}"
+curl_request POST /api/admin/problems "$ADMIN_CREATE_BODY" -b "$ADMIN_COOKIE_JAR"
+assert_response "POST /api/admin/problems" 201 true created
+assert_body_contains "POST /api/admin/problems" "\"title\":\"$ADMIN_TITLE\""
+CREATED_PROBLEM_ID="$(sed -n 's/.*"id":\([0-9][0-9]*\).*/\1/p' "$BODY_FILE" | head -n 1)"
+[[ -n "$CREATED_PROBLEM_ID" ]] ||
+  fail "POST /api/admin/problems should return created problem id; body: $RESPONSE_BODY"
+
+curl_request GET /api/problems ""
+assert_response "GET /api/problems after admin create" 200 true ok
+assert_body_contains "GET /api/problems after admin create" "\"title\":\"$ADMIN_TITLE\""
+
+curl_request GET "/api/problems/$CREATED_PROBLEM_ID" ""
+assert_response "GET /api/problems/{created}" 200 true ok
+assert_body_contains "GET /api/problems/{created}" "\"title\":\"$ADMIN_TITLE\""
+assert_body_contains "GET /api/problems/{created}" '"input":"2 3\n"'
+assert_body_not_contains "GET /api/problems/{created} hidden testcase" '7 8'
+
+curl_request DELETE "/api/admin/problems/$CREATED_PROBLEM_ID" "" -b "$ADMIN_COOKIE_JAR"
+assert_response "DELETE /api/admin/problems/{created}" 200 true deleted
+assert_body_contains "DELETE /api/admin/problems/{created}" '"deleted":true'
+
+curl_request GET "/api/problems/$CREATED_PROBLEM_ID" ""
+assert_response "GET /api/problems/{created} after delete" 404 false "not found"
+
+curl_request DELETE "/api/admin/problems/$CREATED_PROBLEM_ID" "" -b "$ADMIN_COOKIE_JAR"
+assert_response "DELETE /api/admin/problems/{created} again" 404 false "not found"
+
+curl_request POST /api/admin/logout '{}' -b "$ADMIN_COOKIE_JAR" -c "$ADMIN_COOKIE_JAR"
+assert_response "POST /api/admin/logout logged in" 200 true "logged out"
+
+curl_request GET /api/admin/me "" -b "$ADMIN_COOKIE_JAR"
+assert_response "GET /api/admin/me after logout" 200 true ok
+assert_body_contains "GET /api/admin/me after logout" '"logged_in":false'

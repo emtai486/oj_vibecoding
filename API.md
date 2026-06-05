@@ -59,7 +59,13 @@ oj_user_session=<session_id>; Path=/; HttpOnly; SameSite=Lax
 
 需要普通用户登录的接口必须携带该 Cookie。
 
-管理员登录态在 `SPEC.md` 中规划，但当前后端尚未实现管理员 API 和管理员 session。
+管理员登录成功后使用独立 Cookie 保存 session：
+
+```text
+oj_admin_session=<session_id>; Path=/; HttpOnly; SameSite=Lax
+```
+
+需要管理员登录的接口必须携带该 Cookie。
 
 ## 2. 基础 API
 
@@ -452,22 +458,107 @@ HTTP/1.1 401 Unauthorized
 
 ## 6. 管理员 API
 
-`SPEC.md` 规划了以下管理员接口，但当前后端尚未实现：
+### 6.1 查询当前管理员
+
+```http
+GET /api/admin/me
+```
+
+认证要求：无。未登录时返回 `logged_in=false`。
+
+### 6.2 管理员登录
 
 ```http
 POST /api/admin/login
-POST /api/admin/logout
-POST /api/admin/problems
-DELETE /api/admin/problems/{id}
 ```
 
-当前调用这些接口会命中 API 404 错误处理：
+请求：
 
 ```json
 {
-  "success": false,
-  "message": "not found",
-  "data": null
+  "username": "admin",
+  "password": "password"
+}
+```
+
+成功后设置 `oj_admin_session` Cookie。
+
+### 6.3 管理员退出
+
+```http
+POST /api/admin/logout
+```
+
+退出时清除 `oj_admin_session` Cookie。
+
+### 6.4 新增题目
+
+```http
+POST /api/admin/problems
+```
+
+认证要求：管理员登录。
+
+请求：
+
+```json
+{
+  "title": "A+B Problem",
+  "difficulty": "easy",
+  "description": "Read two integers and output their sum.",
+  "input_format": "Two integers.",
+  "output_format": "One integer.",
+  "sample_input": "1 2\n",
+  "sample_output": "3\n",
+  "time_limit_ms": 1000,
+  "memory_limit_kb": 131072,
+  "compare_mode": "strict",
+  "samples": [
+    {
+      "input": "1 2\n",
+      "expected_output": "3\n"
+    }
+  ],
+  "hidden_testcases": [
+    {
+      "input": "10 20\n",
+      "expected_output": "30\n"
+    }
+  ]
+}
+```
+
+成功响应：
+
+```json
+{
+  "success": true,
+  "message": "created",
+  "data": {
+    "id": 3,
+    "title": "A+B Problem",
+    "difficulty": "easy"
+  }
+}
+```
+
+### 6.5 删除题目
+
+```http
+DELETE /api/admin/problems/{id}
+```
+
+认证要求：管理员登录。删除题目时 MySQL 外键会级联删除关联测试用例。
+
+成功响应：
+
+```json
+{
+  "success": true,
+  "message": "deleted",
+  "data": {
+    "deleted": true
+  }
 }
 ```
 
@@ -542,22 +633,30 @@ curl -sS -X POST "$BASE_URL/api/submit" \
   --data '{"problem_id":1,"code":"#include <bits/stdc++.h>\nusing namespace std;\nint main(){int a,b;if(cin>>a>>b){cout<<a+b<<endl;}return 0;}\n"}'
 ```
 
-当前未实现的管理员接口：
+管理员接口：
 
 ```bash
 curl -sS -X POST "$BASE_URL/api/admin/login" \
   -H "Content-Type: application/json" \
+  -c /tmp/oj_admin_cookie.txt \
   --data '{"username":"admin","password":"password"}'
 
-curl -sS -X POST "$BASE_URL/api/admin/logout" \
-  -H "Content-Type: application/json" \
-  --data '{}'
+curl -sS "$BASE_URL/api/admin/me" \
+  -b /tmp/oj_admin_cookie.txt
 
 curl -sS -X POST "$BASE_URL/api/admin/problems" \
   -H "Content-Type: application/json" \
-  --data '{"title":"Example"}'
+  -b /tmp/oj_admin_cookie.txt \
+  --data '{"title":"New A+B","difficulty":"easy","description":"Read two integers and output the sum.","input_format":"Two integers.","output_format":"One integer.","sample_input":"1 2\n","sample_output":"3\n","time_limit_ms":1000,"memory_limit_kb":131072,"compare_mode":"strict","samples":[{"input":"1 2\n","expected_output":"3\n"}],"hidden_testcases":[{"input":"10 20\n","expected_output":"30\n"}]}'
 
-curl -sS -X DELETE "$BASE_URL/api/admin/problems/1"
+curl -sS -X DELETE "$BASE_URL/api/admin/problems/3" \
+  -b /tmp/oj_admin_cookie.txt
+
+curl -sS -X POST "$BASE_URL/api/admin/logout" \
+  -H "Content-Type: application/json" \
+  -b /tmp/oj_admin_cookie.txt \
+  -c /tmp/oj_admin_cookie.txt \
+  --data '{}'
 ```
 
 ## 8. curl 接口自动化测试
@@ -586,7 +685,7 @@ make test-api-curl-basic
 - `GET /api/user/me` 未登录返回 `logged_in=false`
 - 未登录 `POST /api/submit` 返回 `401 unauthorized`
 - 未登录 `POST /api/user/logout` 返回成功
-- 当前未实现的管理员 API 返回 `404 not found`
+- 未登录管理员 API 返回未登录态或 `401 unauthorized`
 
 完整接口测试需要先准备测试数据库并导入：
 

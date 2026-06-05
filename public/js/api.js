@@ -30,6 +30,12 @@ const api = {
     });
   },
 
+  delete(path) {
+    return this.request(path, {
+      method: "DELETE",
+    });
+  },
+
   logout() {
     return this.post("/api/user/logout", {});
   },

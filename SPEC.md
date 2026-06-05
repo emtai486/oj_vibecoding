@@ -1105,15 +1105,15 @@ code
 
 ### 12.5 管理员功能
 
-- [ ] 实现 POST /api/admin/login
-- [ ] 实现 POST /api/admin/logout
-- [ ] 实现管理员 session/cookie
-- [ ] 实现 POST /api/admin/problems
-- [ ] 实现 DELETE /api/admin/problems/{id}
-- [ ] 实现管理员登录页
-- [ ] 实现管理员后台页
-- [ ] 实现新增题目页
-- [ ] 实现删除题目功能
+- [x] 实现 POST /api/admin/login
+- [x] 实现 POST /api/admin/logout
+- [x] 实现管理员 session/cookie
+- [x] 实现 POST /api/admin/problems
+- [x] 实现 DELETE /api/admin/problems/{id}
+- [x] 实现管理员登录页
+- [x] 实现管理员后台页
+- [x] 实现新增题目页
+- [x] 实现删除题目功能
 
 ### 12.6 判题系统
 

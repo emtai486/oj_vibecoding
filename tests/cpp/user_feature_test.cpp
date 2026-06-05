@@ -94,6 +94,25 @@ void test_user_session_cookie() {
   sessions.destroy_user_session(session_id);
   expect(!sessions.find_user_session(session_id).has_value(),
          "destroyed session should not be retrievable");
+
+  const std::string admin_session_id =
+      sessions.create_admin_session(3, "admin");
+  const auto admin = sessions.find_admin_session(admin_session_id);
+  expect(admin.has_value(), "created admin session should be retrievable");
+  expect_equal(admin->username, std::string("admin"),
+               "admin session should keep username");
+
+  httplib::Response admin_response;
+  oj::auth::set_admin_session_cookie(admin_response, admin_session_id);
+  expect_contains(admin_response.get_header_value("Set-Cookie"),
+                  "oj_admin_session=",
+                  "admin login should set admin session cookie");
+  expect_contains(admin_response.get_header_value("Set-Cookie"), "HttpOnly",
+                  "admin session cookie should be HttpOnly");
+
+  sessions.destroy_admin_session(admin_session_id);
+  expect(!sessions.find_admin_session(admin_session_id).has_value(),
+         "destroyed admin session should not be retrievable");
 }
 
 void test_output_comparator() {
@@ -112,9 +131,15 @@ void test_output_comparator() {
 void test_user_feature_sources(const fs::path& root) {
   const std::string server = read_text(root / "src/app/server.cpp");
   const std::string submit_api = read_text(root / "src/api/submit_api.cpp");
+  const std::string admin_api = read_text(root / "src/api/admin_api.cpp");
+  const std::string admin_repository =
+      read_text(root / "src/db/admin_repository.cpp");
+  const std::string problem_repository =
+      read_text(root / "src/db/problem_repository.cpp");
   const std::string user_api = read_text(root / "src/api/user_api.cpp");
   const std::string problem_api = read_text(root / "src/api/problem_api.cpp");
   const std::string storage = read_text(root / "public/js/storage.js");
+  const std::string admin_js = read_text(root / "public/js/admin.js");
   const std::string problem_detail =
       read_text(root / "public/js/problem-detail.js");
   const std::string problem_list =
@@ -126,6 +151,8 @@ void test_user_feature_sources(const fs::path& root) {
                   "server should register user API routes");
   expect_contains(server, "register_submit_routes",
                   "server should register submit API route");
+  expect_contains(server, "register_admin_routes",
+                  "server should register admin API routes");
   expect_contains(problem_api, "/api/problems",
                   "problem API should expose problem list");
   expect_contains(problem_api, R"(/api/problems/(\d+))",
@@ -138,6 +165,28 @@ void test_user_feature_sources(const fs::path& root) {
                   "submit API should reject anonymous users");
   expect_contains(submit_api, "JudgeService",
                   "submit API should call judge service");
+  expect_contains(admin_repository, "FROM admins WHERE username",
+                  "admin repository should load seeded admins");
+  expect_contains(admin_api, "/api/admin/login",
+                  "admin API should expose login");
+  expect_contains(admin_api, "/api/admin/logout",
+                  "admin API should expose logout");
+  expect_contains(admin_api, "/api/admin/problems",
+                  "admin API should expose problem creation");
+  expect_contains(admin_api, "oj_admin_session",
+                  "admin API should use an admin session cookie");
+  expect_contains(admin_api, "delete_by_id",
+                  "admin API should delete problems");
+  expect_contains(problem_repository, "INSERT INTO testcases",
+                  "admin problem creation should persist testcases");
+  expect_contains(problem_repository, "DELETE FROM problems WHERE id",
+                  "problem repository should physically delete problems");
+  expect_contains(admin_js, "/api/admin/me",
+                  "admin pages should check admin login state");
+  expect_contains(admin_js, "data-delete-id",
+                  "admin frontend should expose delete action");
+  expect_contains(admin_js, "hidden_testcases",
+                  "new problem form should send hidden testcases");
   expect_contains(storage, "oj_problem_status",
                   "frontend should use SPEC localStorage key");
   expect_contains(storage, "\"passed\"",
@@ -160,6 +209,12 @@ void test_spec_progress(const fs::path& root) {
                   "SPEC 12.4 submit item should be complete");
   expect_contains(spec, "- [x] 实现 localStorage 完成状态",
                   "SPEC 12.4 localStorage item should be complete");
+  expect_contains(spec, "- [x] 实现 POST /api/admin/login",
+                  "SPEC 12.5 admin login item should be complete");
+  expect_contains(spec, "- [x] 实现管理员 session/cookie",
+                  "SPEC 12.5 admin session item should be complete");
+  expect_contains(spec, "- [x] 实现 DELETE /api/admin/problems/{id}",
+                  "SPEC 12.5 admin delete item should be complete");
 }
 
 }  // namespace
@@ -184,6 +239,6 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  std::cout << "PASS: SPEC 12.4 ordinary user feature checks passed\n";
+  std::cout << "PASS: SPEC 12.4 ordinary user and 12.5 admin feature checks passed\n";
   return 0;
 }

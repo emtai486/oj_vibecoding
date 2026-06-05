@@ -22,6 +22,14 @@
   gap: 14px;
 }
 
+.danger-button {
+  background: var(--danger);
+}
+
+.danger-button:hover {
+  background: #7a271a;
+}
+
 @media (max-width: 760px) {
   .form-grid {
     grid-template-columns: 1fr;
