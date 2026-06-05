@@ -6,6 +6,7 @@ DB_SQL_TEST_TARGET := $(BUILD_DIR)/tests/database_sql_test
 BACKEND_FOUNDATION_TEST_TARGET := $(BUILD_DIR)/tests/backend_foundation_test
 USER_FEATURE_TEST_TARGET := $(BUILD_DIR)/tests/user_feature_test
 GTEST_BACKEND_FOUNDATION_TARGET := $(BUILD_DIR)/tests/backend_foundation_gtest
+GTEST_USER_FEATURE_TARGET := $(BUILD_DIR)/tests/user_feature_gtest
 
 MYSQL_CFLAGS := $(shell mysql_config --cflags)
 MYSQL_LIBS := $(shell mysql_config --libs)
@@ -41,8 +42,9 @@ test: $(INIT_TEST_TARGET) $(DB_SQL_TEST_TARGET) $(BACKEND_FOUNDATION_TEST_TARGET
 	./$(BACKEND_FOUNDATION_TEST_TARGET) .
 	./$(USER_FEATURE_TEST_TARGET) .
 
-test-gtest: $(GTEST_BACKEND_FOUNDATION_TARGET)
+test-gtest: $(GTEST_BACKEND_FOUNDATION_TARGET) $(GTEST_USER_FEATURE_TARGET)
 	./$(GTEST_BACKEND_FOUNDATION_TARGET) .
+	./$(GTEST_USER_FEATURE_TARGET) .
 
 $(INIT_TEST_TARGET): tests/cpp/initialization_test.cpp src/config/config.cpp src/db/mysql_client.cpp
 	@mkdir -p $(dir $@)
@@ -61,6 +63,10 @@ $(USER_FEATURE_TEST_TARGET): tests/cpp/user_feature_test.cpp src/auth/password.c
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -o $@ $(LDLIBS)
 
 $(GTEST_BACKEND_FOUNDATION_TARGET): tests/cpp/backend_foundation_gtest.cpp $(APP_LIB_SRCS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CPPFLAGS) $(GTEST_CFLAGS) $(CXXFLAGS) $^ -o $@ $(LDLIBS) $(GTEST_LIBS)
+
+$(GTEST_USER_FEATURE_TARGET): tests/cpp/user_feature_gtest.cpp src/auth/password.cpp src/auth/session.cpp src/judge/comparator.cpp src/judge/judge_service.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(GTEST_CFLAGS) $(CXXFLAGS) $^ -o $@ $(LDLIBS) $(GTEST_LIBS)
 
