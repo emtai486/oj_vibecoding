@@ -1,5 +1,9 @@
 #include "app/server.h"
 
+#include "api/problem_api.h"
+#include "api/submit_api.h"
+#include "api/user_api.h"
+#include "auth/session.h"
 #include "util/json_response.h"
 
 #include <exception>
@@ -81,12 +85,16 @@ void register_base_routes(httplib::Server& server) {
 
 }  // namespace
 
-std::unique_ptr<httplib::Server> create_server(const config::AppConfig&,
+std::unique_ptr<httplib::Server> create_server(const config::AppConfig& config,
                                                std::string public_dir) {
   auto server = std::make_unique<httplib::Server>();
+  auto sessions = std::make_shared<auth::SessionStore>();
   register_error_handlers(*server);
   register_static_files(*server, public_dir);
   register_base_routes(*server);
+  api::register_problem_routes(*server, config.mysql);
+  api::register_user_routes(*server, config.mysql, sessions);
+  api::register_submit_routes(*server, config.mysql, sessions);
   return server;
 }
 

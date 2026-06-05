@@ -1087,21 +1087,21 @@ code
 
 ### 12.4 普通用户功能
 
-- [ ] 实现 GET /api/problems
-- [ ] 实现 GET /api/problems/{id}
-- [ ] 实现 POST /api/user/register，或提供初始化测试用户
-- [ ] 实现 POST /api/user/login
-- [ ] 实现 POST /api/user/logout
-- [ ] 实现普通用户 session/cookie
-- [ ] 实现 POST /api/submit
-- [ ] 实现未登录用户禁止提交
-- [ ] 实现题目列表页面
-- [ ] 实现题目详情页面
-- [ ] 实现普通用户登录页
-- [ ] 实现普通用户注册页，可选
-- [ ] 实现代码编辑器
-- [ ] 实现提交结果展示
-- [ ] 实现 localStorage 完成状态
+- [x] 实现 GET /api/problems
+- [x] 实现 GET /api/problems/{id}
+- [x] 实现 POST /api/user/register，或提供初始化测试用户
+- [x] 实现 POST /api/user/login
+- [x] 实现 POST /api/user/logout
+- [x] 实现普通用户 session/cookie
+- [x] 实现 POST /api/submit
+- [x] 实现未登录用户禁止提交
+- [x] 实现题目列表页面
+- [x] 实现题目详情页面
+- [x] 实现普通用户登录页
+- [x] 实现普通用户注册页，可选
+- [x] 实现代码编辑器
+- [x] 实现提交结果展示
+- [x] 实现 localStorage 完成状态
 
 ### 12.5 管理员功能
 

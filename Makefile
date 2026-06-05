@@ -4,6 +4,7 @@ TARGET := $(BUILD_DIR)/oj_server
 INIT_TEST_TARGET := $(BUILD_DIR)/tests/initialization_test
 DB_SQL_TEST_TARGET := $(BUILD_DIR)/tests/database_sql_test
 BACKEND_FOUNDATION_TEST_TARGET := $(BUILD_DIR)/tests/backend_foundation_test
+USER_FEATURE_TEST_TARGET := $(BUILD_DIR)/tests/user_feature_test
 GTEST_BACKEND_FOUNDATION_TARGET := $(BUILD_DIR)/tests/backend_foundation_gtest
 
 MYSQL_CFLAGS := $(shell mysql_config --cflags)
@@ -16,6 +17,7 @@ CXXFLAGS ?= -std=c++20 -Wall -Wextra -Wpedantic -O2
 LDLIBS += $(MYSQL_LIBS) -pthread
 
 SRCS := $(shell find src -name '*.cpp')
+APP_LIB_SRCS := $(filter-out src/main.cpp,$(SRCS))
 OBJS := $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 
 .PHONY: all clean check-db test test-gtest
@@ -33,10 +35,11 @@ $(BUILD_DIR)/%.o: %.cpp
 check-db: $(TARGET)
 	./$(TARGET) --check-db config/app.example.conf
 
-test: $(INIT_TEST_TARGET) $(DB_SQL_TEST_TARGET) $(BACKEND_FOUNDATION_TEST_TARGET)
+test: $(INIT_TEST_TARGET) $(DB_SQL_TEST_TARGET) $(BACKEND_FOUNDATION_TEST_TARGET) $(USER_FEATURE_TEST_TARGET)
 	./$(INIT_TEST_TARGET) .
 	./$(DB_SQL_TEST_TARGET) .
 	./$(BACKEND_FOUNDATION_TEST_TARGET) .
+	./$(USER_FEATURE_TEST_TARGET) .
 
 test-gtest: $(GTEST_BACKEND_FOUNDATION_TARGET)
 	./$(GTEST_BACKEND_FOUNDATION_TARGET) .
@@ -49,11 +52,15 @@ $(DB_SQL_TEST_TARGET): tests/cpp/database_sql_test.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-$(BACKEND_FOUNDATION_TEST_TARGET): tests/cpp/backend_foundation_test.cpp src/app/server.cpp src/config/config.cpp src/db/mysql_client.cpp src/util/json.cpp src/util/json_response.cpp
+$(BACKEND_FOUNDATION_TEST_TARGET): tests/cpp/backend_foundation_test.cpp $(APP_LIB_SRCS)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -o $@ $(LDLIBS)
 
-$(GTEST_BACKEND_FOUNDATION_TARGET): tests/cpp/backend_foundation_gtest.cpp src/app/server.cpp src/config/config.cpp src/db/mysql_client.cpp src/util/json.cpp src/util/json_response.cpp
+$(USER_FEATURE_TEST_TARGET): tests/cpp/user_feature_test.cpp src/auth/password.cpp src/auth/session.cpp src/judge/comparator.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -o $@ $(LDLIBS)
+
+$(GTEST_BACKEND_FOUNDATION_TARGET): tests/cpp/backend_foundation_gtest.cpp $(APP_LIB_SRCS)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(GTEST_CFLAGS) $(CXXFLAGS) $^ -o $@ $(LDLIBS) $(GTEST_LIBS)
 

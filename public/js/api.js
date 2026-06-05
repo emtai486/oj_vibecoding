@@ -19,10 +19,18 @@ const api = {
     return this.request(`/api/problems/${id}`);
   },
 
+  getCurrentUser() {
+    return this.request("/api/user/me");
+  },
+
   post(path, body) {
     return this.request(path, {
       method: "POST",
       body: JSON.stringify(body),
     });
+  },
+
+  logout() {
+    return this.post("/api/user/logout", {});
   },
 };

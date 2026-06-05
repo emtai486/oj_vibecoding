@@ -1,5 +1,5 @@
 const solvedStorage = {
-  key: "oj.solvedProblems",
+  key: "oj_problem_status",
 
   all() {
     try {
@@ -10,12 +10,12 @@ const solvedStorage = {
   },
 
   isSolved(problemId) {
-    return Boolean(this.all()[problemId]);
+    return this.all()[problemId] === "passed";
   },
 
   markSolved(problemId) {
     const solved = this.all();
-    solved[problemId] = true;
+    solved[problemId] = "passed";
     localStorage.setItem(this.key, JSON.stringify(solved));
   },
 };

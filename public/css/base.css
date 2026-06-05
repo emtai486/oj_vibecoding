@@ -47,6 +47,23 @@ button:hover,
   background: var(--accent-dark);
 }
 
+button:disabled {
+  background: #98a2b3;
+  cursor: not-allowed;
+}
+
+.link-button {
+  min-height: auto;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.link-button:hover {
+  background: transparent;
+  color: var(--text);
+}
+
 input,
 select,
 textarea {

@@ -1,19 +1,30 @@
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 async function loadProblems() {
   const tbody = document.querySelector("#problem-list");
   const count = document.querySelector("#problem-count");
 
   try {
-    const result = await api.getProblems();
+    const [user, result] = await Promise.all([currentUser(), api.getProblems()]);
     const problems = result.success ? result.data : [];
     count.textContent = `${problems.length} 题`;
     tbody.innerHTML = problems
       .map((problem) => {
-        const status = solvedStorage.isSolved(problem.id) ? "已通过" : "未完成";
+        const status = user
+          ? (solvedStorage.isSolved(problem.id) ? "已通过" : "未完成")
+          : "";
         return `<tr>
-          <td>${problem.id}</td>
-          <td><a href="/problem.html?id=${problem.id}">${problem.title}</a></td>
-          <td>${problem.difficulty}</td>
-          <td>${status}</td>
+          <td>${escapeHtml(problem.id)}</td>
+          <td><a href="/problem.html?id=${encodeURIComponent(problem.id)}">${escapeHtml(problem.title)}</a></td>
+          <td>${escapeHtml(problem.difficulty)}</td>
+          <td>${escapeHtml(status)}</td>
         </tr>`;
       })
       .join("");

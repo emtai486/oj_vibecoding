@@ -1,6 +1,7 @@
 const params = new URLSearchParams(window.location.search);
 const problemId = params.get("id");
 const editor = createCppEditor(document.querySelector("#code-editor"));
+let loggedInUser = null;
 
 function renderProblem(problem) {
   document.querySelector("#problem-title").textContent = problem.title;
@@ -23,6 +24,19 @@ function renderProblem(problem) {
   ].join("\n");
 }
 
+function configureSubmitState() {
+  const submitButton = document.querySelector("#submit-code");
+  const resultView = document.querySelector("#submit-result");
+  if (!loggedInUser) {
+    submitButton.disabled = true;
+    resultView.textContent = "登录后提交";
+    return;
+  }
+
+  submitButton.disabled = false;
+  resultView.textContent = solvedStorage.isSolved(problemId) ? "已通过" : "";
+}
+
 async function loadProblem() {
   if (!problemId) {
     document.querySelector("#problem-content").textContent = "缺少题目 ID";
@@ -41,6 +55,11 @@ async function loadProblem() {
 
 document.querySelector("#submit-code").addEventListener("click", async () => {
   const resultView = document.querySelector("#submit-result");
+  if (!loggedInUser) {
+    resultView.textContent = "请先登录";
+    return;
+  }
+
   resultView.textContent = "提交中";
 
   try {
@@ -52,10 +71,19 @@ document.querySelector("#submit-code").addEventListener("click", async () => {
     resultView.textContent = result.message;
     if (result.success && result.data?.result === "passed") {
       solvedStorage.markSolved(problemId);
+      resultView.textContent = "accepted";
+    } else if (!result.success && result.message === "unauthorized") {
+      resultView.textContent = "请先登录";
     }
   } catch {
     resultView.textContent = "提交失败";
   }
 });
 
-loadProblem();
+async function initProblemPage() {
+  loggedInUser = await currentUser();
+  configureSubmitState();
+  await loadProblem();
+}
+
+initProblemPage();
