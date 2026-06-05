@@ -157,6 +157,29 @@ TEST(JudgeServiceTest, RejectsMissingCodeOrHiddenTestcasesWithoutExecution) {
   expect_contains(judge_service_source, "compare_output");
 }
 
+TEST(JudgeServiceTest, CompilesAndRunsHiddenTestcases) {
+  oj::judge::JudgeService judge_service;
+  const auto problem = addition_problem();
+  const std::vector<oj::model::Testcase> tests{
+      {1, 1, "10 20\n", "30\n", false},
+      {2, 1, "-5 8\n", "3\n", false},
+  };
+
+  constexpr const char* kAcceptedCode =
+      "#include <bits/stdc++.h>\n"
+      "using namespace std;\n"
+      "int main(){int a,b;if(cin>>a>>b){cout<<a+b<<endl;}return 0;}\n";
+  constexpr const char* kWrongAnswerCode =
+      "#include <bits/stdc++.h>\n"
+      "using namespace std;\n"
+      "int main(){cout<<0<<endl;return 0;}\n";
+
+  EXPECT_EQ(judge_service.judge(problem, tests, kAcceptedCode),
+            oj::judge::JudgeResult::Passed);
+  EXPECT_EQ(judge_service.judge(problem, tests, kWrongAnswerCode),
+            oj::judge::JudgeResult::Failed);
+}
+
 TEST(FrontendUserFeatureTest, ImplementsProblemPagesAndSolvedStateContract) {
   const std::string storage = read_text(project_root / "public/js/storage.js");
   const std::string problem_detail =

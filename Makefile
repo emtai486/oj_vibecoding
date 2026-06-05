@@ -21,7 +21,7 @@ SRCS := $(shell find src -name '*.cpp')
 APP_LIB_SRCS := $(filter-out src/main.cpp,$(SRCS))
 OBJS := $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 
-.PHONY: all clean check-db test test-gtest
+.PHONY: all clean check-db test test-gtest test-api-curl test-api-curl-basic
 
 all: $(TARGET)
 
@@ -61,6 +61,12 @@ $(BACKEND_FOUNDATION_TEST_TARGET): tests/cpp/backend_foundation_test.cpp $(APP_L
 $(USER_FEATURE_TEST_TARGET): tests/cpp/user_feature_test.cpp src/auth/password.cpp src/auth/session.cpp src/judge/comparator.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -o $@ $(LDLIBS)
+
+test-api-curl: $(TARGET)
+	bash scripts/api_curl_test.sh config/app.conf
+
+test-api-curl-basic: $(TARGET)
+	bash scripts/api_curl_test.sh --basic config/app.example.conf
 
 $(GTEST_BACKEND_FOUNDATION_TARGET): tests/cpp/backend_foundation_gtest.cpp $(APP_LIB_SRCS)
 	@mkdir -p $(dir $@)

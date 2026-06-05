@@ -48,6 +48,10 @@ void register_error_handlers(httplib::Server& server) {
 
   server.set_error_handler([](const httplib::Request& request,
                               httplib::Response& response) {
+    if (!response.body.empty()) {
+      return;
+    }
+
     if (request.path.rfind("/api/", 0) == 0) {
       const int status = response.status == -1
                              ? httplib::StatusCode::NotFound_404

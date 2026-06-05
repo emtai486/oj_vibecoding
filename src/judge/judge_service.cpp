@@ -71,8 +71,9 @@ class JudgeSlot {
 class TempDirectory {
  public:
   TempDirectory() {
-    fs::create_directories("var/judge_tmp");
-    path_ = fs::path("var/judge_tmp") / unique_name();
+    const fs::path base = fs::absolute("var/judge_tmp");
+    fs::create_directories(base);
+    path_ = base / unique_name();
     fs::create_directories(path_);
   }
 
