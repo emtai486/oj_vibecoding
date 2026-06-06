@@ -21,7 +21,7 @@ SRCS := $(shell find src -name '*.cpp')
 APP_LIB_SRCS := $(filter-out src/main.cpp,$(SRCS))
 OBJS := $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 
-.PHONY: all clean check-db test test-gtest test-api-curl test-api-curl-basic
+.PHONY: all clean check-db test test-gtest test-api-curl test-api-curl-basic test-api-python test-api-python-basic
 
 all: $(TARGET)
 
@@ -67,6 +67,12 @@ test-api-curl: $(TARGET)
 
 test-api-curl-basic: $(TARGET)
 	bash scripts/api_curl_test.sh --basic config/app.example.conf
+
+test-api-python: $(TARGET)
+	python3 scripts/api_python_test.py config/app.conf
+
+test-api-python-basic: $(TARGET)
+	python3 scripts/api_python_test.py --basic config/app.example.conf
 
 $(GTEST_BACKEND_FOUNDATION_TARGET): tests/cpp/backend_foundation_gtest.cpp $(APP_LIB_SRCS)
 	@mkdir -p $(dir $@)
