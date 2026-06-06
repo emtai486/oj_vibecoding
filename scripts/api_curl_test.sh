@@ -360,6 +360,10 @@ assert_body_contains "DELETE /api/admin/problems/{created}" '"deleted":true'
 curl_request GET "/api/problems/$CREATED_PROBLEM_ID" ""
 assert_response "GET /api/problems/{created} after delete" 404 false "not found"
 
+curl_request GET /api/problems ""
+assert_response "GET /api/problems after admin delete" 200 true ok
+assert_body_not_contains "GET /api/problems after admin delete" "\"title\":\"$ADMIN_TITLE\""
+
 curl_request DELETE "/api/admin/problems/$CREATED_PROBLEM_ID" "" -b "$ADMIN_COOKIE_JAR"
 assert_response "DELETE /api/admin/problems/{created} again" 404 false "not found"
 

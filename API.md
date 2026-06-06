@@ -466,11 +466,41 @@ GET /api/admin/me
 
 认证要求：无。未登录时返回 `logged_in=false`。
 
+未登录响应：
+
+```json
+{
+  "success": true,
+  "message": "ok",
+  "data": {
+    "logged_in": false
+  }
+}
+```
+
+已登录响应：
+
+```json
+{
+  "success": true,
+  "message": "ok",
+  "data": {
+    "logged_in": true,
+    "admin": {
+      "id": 1,
+      "username": "admin"
+    }
+  }
+}
+```
+
 ### 6.2 管理员登录
 
 ```http
 POST /api/admin/login
 ```
+
+认证要求：无。
 
 请求：
 
@@ -481,7 +511,33 @@ POST /api/admin/login
 }
 ```
 
-成功后设置 `oj_admin_session` Cookie。
+成功响应：
+
+```json
+{
+  "success": true,
+  "message": "logged in",
+  "data": {
+    "id": 1,
+    "username": "admin"
+  }
+}
+```
+
+响应头包含：
+
+```http
+Set-Cookie: oj_admin_session=<session_id>; Path=/; HttpOnly; SameSite=Lax
+```
+
+可能错误：
+
+| HTTP 状态码 | message | 说明 |
+| --- | --- | --- |
+| 400 | `invalid json` | 请求体不是合法 JSON |
+| 400 | `invalid username or password` | 缺少用户名或密码字段 |
+| 401 | `invalid username or password` | 管理员不存在或密码错误 |
+| 500 | `database error` | 数据库连接或查询失败 |
 
 ### 6.3 管理员退出
 
@@ -489,7 +545,23 @@ POST /api/admin/login
 POST /api/admin/logout
 ```
 
-退出时清除 `oj_admin_session` Cookie。
+认证要求：无。已登录时会销毁当前管理员 session；未登录时也返回成功。
+
+成功响应：
+
+```json
+{
+  "success": true,
+  "message": "logged out",
+  "data": null
+}
+```
+
+响应头包含清理 Cookie：
+
+```http
+Set-Cookie: oj_admin_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax
+```
 
 ### 6.4 新增题目
 
@@ -528,7 +600,24 @@ POST /api/admin/problems
 }
 ```
 
+校验规则：
+
+- `title` 必填，长度为 1-200。
+- `difficulty` 只能是 `easy`、`medium`、`hard`。
+- `description` 必填且非空。
+- `input_format`、`output_format`、`sample_input` 必填。
+- `sample_output` 必填且非空。
+- `time_limit_ms` 范围为 1-60000。
+- `memory_limit_kb` 范围为 1024-1048576。
+- `compare_mode` 只能是 `strict`、`float_1`。
+- `samples` 和 `hidden_testcases` 都必须是数组，且至少各包含一条用例。
+- 每条测试用例必须包含字符串 `input` 和非空字符串 `expected_output`。
+
 成功响应：
+
+```http
+HTTP/1.1 201 Created
+```
 
 ```json
 {
@@ -541,6 +630,15 @@ POST /api/admin/problems
   }
 }
 ```
+
+可能错误：
+
+| HTTP 状态码 | message | 说明 |
+| --- | --- | --- |
+| 400 | `invalid json` | 请求体不是合法 JSON |
+| 400 | `invalid problem` | 题目字段或测试用例不符合规则 |
+| 401 | `unauthorized` | 未登录管理员 |
+| 500 | `database error` | 数据库连接或写入失败 |
 
 ### 6.5 删除题目
 
@@ -561,6 +659,14 @@ DELETE /api/admin/problems/{id}
   }
 }
 ```
+
+可能错误：
+
+| HTTP 状态码 | message | 说明 |
+| --- | --- | --- |
+| 401 | `unauthorized` | 未登录管理员 |
+| 404 | `not found` | 题目不存在或已经被删除 |
+| 500 | `database error` | 数据库连接或写入失败 |
 
 ## 7. curl 请求示例
 
@@ -721,3 +827,16 @@ OJ_API_BASE_URL=http://127.0.0.1:8080 bash scripts/api_curl_test.sh --no-start
 - 登录后错误代码提交返回 `failed`
 - 登录后编译错误代码提交返回 `failed`
 - 登录后空代码提交返回 `failed`
+- `POST /api/admin/login` 管理员错误密码返回 `401 invalid username or password`
+- `POST /api/admin/login` 管理员正确登录并写入 `oj_admin_session` Cookie
+- `GET /api/admin/me` 管理员登录后返回 `logged_in=true`
+- 未登录 `POST /api/admin/problems` 返回 `401 unauthorized`
+- 未登录 `DELETE /api/admin/problems/{id}` 返回 `401 unauthorized`
+- 管理员 `POST /api/admin/problems` 缺少必填字段返回 `400 invalid problem`
+- 管理员 `POST /api/admin/problems` 可以新增包含样例和隐藏用例的题目
+- 新增题目后 `GET /api/problems` 可以看到该题目
+- 新增题目后 `GET /api/problems/{id}` 可以访问详情并只暴露样例用例
+- 管理员 `DELETE /api/admin/problems/{id}` 可以删除题目
+- 删除后 `GET /api/problems/{id}` 返回 `404 not found`
+- 重复删除同一题目返回 `404 not found`
+- `POST /api/admin/logout` 退出后 `GET /api/admin/me` 返回 `logged_in=false`
