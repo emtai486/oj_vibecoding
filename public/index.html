@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>OJ 题目列表</title>
+    <title>CodeJudge 在线判题平台</title>
     <link rel="stylesheet" href="/css/base.css">
     <link rel="stylesheet" href="/css/layout.css">
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="/">OJ</a>
+      <a class="brand" href="/">CodeJudge</a>
       <nav class="nav" id="auth-nav">
         <a href="/login.html">登录</a>
         <a href="/register.html">注册</a>
@@ -17,33 +17,141 @@
       </nav>
     </header>
 
-    <main class="page">
-      <section class="panel">
-        <div class="panel-header">
-          <h1>题目</h1>
-          <span id="problem-count" class="muted">0 题</span>
+    <main class="page hero-shell">
+      <section class="hero" aria-labelledby="home-title">
+        <div class="hero-inner">
+          <div class="hero-copy">
+            <span class="eyebrow">C++ Online Judge</span>
+            <h1 id="home-title">CodeJudge 在线判题训练平台</h1>
+            <p>
+              面向课程训练和小规模实战演练的 OJ 系统。登录后进入题库，使用本地化编辑器提交完整 C++ 程序，并记录个人通过状态。
+            </p>
+            <div class="hero-actions">
+              <a id="landing-problems-link" class="button-link" href="/login.html">登录进入题库</a>
+              <a class="button-link button-secondary" href="/register.html">创建账号</a>
+            </div>
+          </div>
+
+          <aside class="hero-terminal" aria-label="判题流程预览">
+            <div class="terminal-bar">
+              <span class="terminal-dot"></span>
+              <span class="terminal-dot"></span>
+              <span class="terminal-dot"></span>
+            </div>
+            <pre class="terminal-code">judge@codebox:~$ g++ main.cpp -O2
+compile: ok
+runner: hidden_cases queued
+limit: 1000ms / 128MB
+compare: strict
+result: accepted</pre>
+          </aside>
         </div>
-        <table class="problem-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>标题</th>
-              <th>难度</th>
-              <th>状态</th>
-            </tr>
-          </thead>
-          <tbody id="problem-list">
-            <tr>
-              <td colspan="4" class="muted">正在加载</td>
-            </tr>
-          </tbody>
-        </table>
+      </section>
+
+      <section class="stats-grid" aria-label="系统能力">
+        <div class="stat-card">
+          <strong>C++17</strong>
+          <span>完整程序提交与编译运行</span>
+        </div>
+        <div class="stat-card">
+          <strong>Strict</strong>
+          <span>样例与隐藏用例判定</span>
+        </div>
+        <div class="stat-card">
+          <strong>Local</strong>
+          <span>浏览器保留个人通过状态</span>
+        </div>
+      </section>
+
+      <section class="landing-grid" aria-label="平台入口">
+        <article class="landing-card">
+          <span class="eyebrow">Problem Set</span>
+          <h2>登录后查看题库</h2>
+          <p>题目列表、完成状态和提交入口统一放在登录后的训练工作台中，公开首页只保留平台介绍和账号入口。</p>
+        </article>
+        <article class="landing-card">
+          <span class="eyebrow">Editor</span>
+          <h2>浏览器内完成提交</h2>
+          <p>题目详情页集成 CodeMirror 编辑器，支持 C++17 代码提交和判题结果回显。</p>
+        </article>
+        <article class="landing-card">
+          <span class="eyebrow">Admin</span>
+          <h2>后台维护题目</h2>
+          <p>管理员可维护题目、难度、测试用例和资源限制，前台训练页面自动读取最新数据。</p>
+        </article>
+      </section>
+
+      <section class="landing-section" aria-labelledby="flow-title">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Training Flow</span>
+            <h2 id="flow-title">从题库到判题结果</h2>
+          </div>
+          <a id="landing-flow-link" class="button-link button-secondary" href="/login.html?next=%2Fproblems.html">开始训练</a>
+        </div>
+        <div class="workflow-grid">
+          <article class="workflow-step">
+            <span class="step-index">01</span>
+            <h3>进入题库</h3>
+            <p>登录后查看全部题目，按难度和完成状态快速定位下一道训练题。</p>
+          </article>
+          <article class="workflow-step">
+            <span class="step-index">02</span>
+            <h3>阅读题面</h3>
+            <p>题目详情集中展示输入输出格式、样例、时间限制和内存限制。</p>
+          </article>
+          <article class="workflow-step">
+            <span class="step-index">03</span>
+            <h3>提交代码</h3>
+            <p>在浏览器编辑 C++17 程序，提交后由后端编译运行隐藏测试用例。</p>
+          </article>
+          <article class="workflow-step">
+            <span class="step-index">04</span>
+            <h3>记录状态</h3>
+            <p>通过后在当前浏览器标记为已完成，回到题库时可以继续规划训练进度。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="role-grid" aria-label="角色能力">
+        <article class="role-panel">
+          <span class="eyebrow">Student Mode</span>
+          <h2>普通用户训练</h2>
+          <p>适合课程作业、算法入门和小规模练习场景。用户登录后只看到训练相关入口，界面保持专注。</p>
+          <ul class="capability-list">
+            <li>题库浏览与题目详情</li>
+            <li>C++17 在线提交</li>
+            <li>本地通过状态记录</li>
+          </ul>
+        </article>
+        <article class="role-panel">
+          <span class="eyebrow">Admin Mode</span>
+          <h2>管理员也可提交</h2>
+          <p>管理员保留新增、删除题目的权限，同时可以直接进入题库练习并提交代码，便于验题和回归检查。</p>
+          <ul class="capability-list">
+            <li>题目与测试用例维护</li>
+            <li>后台列表一键进入练习</li>
+            <li>共享同一套判题流程</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="system-band" aria-label="系统能力概览">
+        <div>
+          <span class="eyebrow">Judge Runtime</span>
+          <h2>面向教学场景的轻量级 OJ</h2>
+          <p>后端使用 C++ 服务提供静态页面和 JSON API，题目与测试用例持久化到 MySQL，提交时同步执行编译、运行和结果比较。</p>
+        </div>
+        <div class="system-metrics" aria-label="技术能力">
+          <span>cpp-httplib</span>
+          <span>MySQL</span>
+          <span>CodeMirror</span>
+          <span>g++</span>
+        </div>
       </section>
     </main>
 
     <script src="/js/api.js"></script>
     <script src="/js/auth.js"></script>
-    <script src="/js/storage.js"></script>
-    <script src="/js/problem-list.js"></script>
   </body>
 </html>

@@ -23,6 +23,10 @@ const api = {
     return this.request("/api/user/me");
   },
 
+  getCurrentAdmin() {
+    return this.request("/api/admin/me");
+  },
+
   post(path, body) {
     return this.request(path, {
       method: "POST",
@@ -38,5 +42,9 @@ const api = {
 
   logout() {
     return this.post("/api/user/logout", {});
+  },
+
+  adminLogout() {
+    return this.post("/api/admin/logout", {});
   },
 };

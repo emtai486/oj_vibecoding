@@ -7,24 +7,36 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function difficultyClass(value) {
+  const difficulty = String(value || "").toLowerCase();
+  return ["easy", "medium", "hard"].includes(difficulty) ? difficulty : "";
+}
+
 async function loadProblems() {
   const tbody = document.querySelector("#problem-list");
   const count = document.querySelector("#problem-count");
 
   try {
-    const [user, result] = await Promise.all([currentUser(), api.getProblems()]);
+    const user = await currentUser();
+    if (!user) {
+      window.location.href = "/login.html?next=%2Fproblems.html";
+      return;
+    }
+
+    const result = await api.getProblems();
     const problems = result.success ? result.data : [];
     count.textContent = `${problems.length} 题`;
     tbody.innerHTML = problems
       .map((problem) => {
-        const status = user
-          ? (solvedStorage.isSolved(problem.id) ? "已通过" : "未完成")
-          : "";
+        const status = solvedStorage.isSolved(problem.id)
+          ? '<span class="status-pill solved">已通过</span>'
+          : '<span class="status-pill unsolved">未完成</span>';
+        const difficulty = escapeHtml(problem.difficulty);
         return `<tr>
           <td>${escapeHtml(problem.id)}</td>
           <td><a href="/problem.html?id=${encodeURIComponent(problem.id)}">${escapeHtml(problem.title)}</a></td>
-          <td>${escapeHtml(problem.difficulty)}</td>
-          <td>${escapeHtml(status)}</td>
+          <td><span class="difficulty ${difficultyClass(problem.difficulty)}">${difficulty}</span></td>
+          <td>${status}</td>
         </tr>`;
       })
       .join("");

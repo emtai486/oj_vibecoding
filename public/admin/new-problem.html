@@ -9,40 +9,60 @@
   </head>
   <body data-admin-page>
     <header class="admin-topbar">
-      <a class="brand" href="/admin/index.html">OJ Admin</a>
+      <a class="brand" href="/admin/index.html">CodeJudge Admin</a>
       <nav class="nav">
         <a href="/admin/index.html">题目管理</a>
+        <a href="/">返回前台</a>
       </nav>
     </header>
 
     <main class="admin-page">
       <form id="new-problem-form" class="problem-form">
+        <span class="eyebrow">Problem Builder</span>
         <h1>新增题目</h1>
-        <label>标题<input name="title" required></label>
-        <label>难度
-          <select name="difficulty">
-            <option value="easy">easy</option>
-            <option value="medium">medium</option>
-            <option value="hard">hard</option>
-          </select>
-        </label>
-        <label>题目描述<textarea name="description" rows="8" required></textarea></label>
-        <label>输入格式<textarea name="input_format" rows="4"></textarea></label>
-        <label>输出格式<textarea name="output_format" rows="4"></textarea></label>
-        <label>样例输入<textarea name="sample_input" rows="4"></textarea></label>
-        <label>样例输出<textarea name="sample_output" rows="4"></textarea></label>
-        <label>隐藏测试用例 JSON<textarea name="hidden_testcases" rows="8" required>[{"input":"10 20\n","expected_output":"30\n"}]</textarea></label>
-        <div class="form-grid">
-          <label>时间限制 ms<input name="time_limit_ms" type="number" min="100" value="1000"></label>
-          <label>内存限制 KB<input name="memory_limit_kb" type="number" min="1024" value="131072"></label>
-          <label>比较模式
-            <select name="compare_mode">
-              <option value="strict">strict</option>
-              <option value="float_1">float_1</option>
-            </select>
-          </label>
-        </div>
-        <button type="submit">保存</button>
+        <p class="form-hint">录入题面、样例与隐藏用例后，系统会持久化到 MySQL 并用于后续判题。</p>
+
+        <section class="form-section" aria-labelledby="basic-info-title">
+          <h2 id="basic-info-title">基础信息</h2>
+          <div class="form-grid">
+            <label>标题<input name="title" required></label>
+            <label>难度
+              <select name="difficulty">
+                <option value="easy">easy</option>
+                <option value="medium">medium</option>
+                <option value="hard">hard</option>
+              </select>
+            </label>
+            <label>比较模式
+              <select name="compare_mode">
+                <option value="strict">strict</option>
+                <option value="float_1">float_1</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="form-section" aria-labelledby="statement-title">
+          <h2 id="statement-title">题面内容</h2>
+          <label>题目描述<textarea name="description" rows="8" required></textarea></label>
+          <div class="form-grid">
+            <label>输入格式<textarea name="input_format" rows="4"></textarea></label>
+            <label>输出格式<textarea name="output_format" rows="4"></textarea></label>
+            <label>样例输入<textarea name="sample_input" rows="4"></textarea></label>
+          </div>
+          <label>样例输出<textarea name="sample_output" rows="4"></textarea></label>
+        </section>
+
+        <section class="form-section" aria-labelledby="judge-title">
+          <h2 id="judge-title">判题配置</h2>
+          <div class="form-grid">
+            <label>时间限制 ms<input name="time_limit_ms" type="number" min="100" value="1000"></label>
+            <label>内存限制 KB<input name="memory_limit_kb" type="number" min="1024" value="131072"></label>
+          </div>
+          <label>隐藏测试用例 JSON<textarea name="hidden_testcases" rows="8" required>[{"input":"10 20\n","expected_output":"30\n"}]</textarea></label>
+        </section>
+
+        <button type="submit">保存题目</button>
         <p id="new-problem-message" class="muted"></p>
       </form>
     </main>

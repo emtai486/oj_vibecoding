@@ -9,34 +9,52 @@
   </head>
   <body data-admin-page>
     <header class="admin-topbar">
-        <a class="brand" href="/admin/index.html">OJ Admin</a>
+      <a class="brand" href="/admin/index.html">CodeJudge Admin</a>
       <nav class="nav">
+        <a href="/problems.html">进入题库</a>
         <a href="/admin/new-problem.html">新增题目</a>
         <a href="/">返回前台</a>
       </nav>
     </header>
 
     <main class="admin-page">
-      <section class="panel">
-        <div class="panel-header">
-          <h1>题目管理</h1>
+      <section class="section-heading" aria-labelledby="admin-title">
+        <div>
+          <span class="eyebrow">Admin Console</span>
+          <h1 id="admin-title">题目管理</h1>
+          <p>维护题面、难度、资源限制与隐藏测试用例，也可以直接进入题目练习和提交代码。</p>
+        </div>
+        <div class="page-actions">
+          <a class="button-link button-secondary" href="/problems.html">进入题库</a>
           <a class="button-link" href="/admin/new-problem.html">新增题目</a>
         </div>
-        <table class="problem-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>标题</th>
-              <th>难度</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody id="admin-problem-list">
-            <tr>
-              <td colspan="4" class="muted">正在加载</td>
-            </tr>
-          </tbody>
-        </table>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="eyebrow">Problem Registry</span>
+            <h2>题库记录</h2>
+          </div>
+          <span class="pill">MySQL Persisted</span>
+        </div>
+        <div class="table-scroll">
+          <table class="problem-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>标题</th>
+                <th>难度</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="admin-problem-list">
+              <tr>
+                <td colspan="4" class="muted">正在加载</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
     </main>
 

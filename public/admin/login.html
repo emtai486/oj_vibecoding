@@ -10,7 +10,9 @@
   <body>
     <main class="admin-login">
       <form id="admin-login-form" class="admin-form">
+        <span class="eyebrow">Admin Session</span>
         <h1>管理员登录</h1>
+        <p class="form-hint">管理员可维护题目，也可以像普通用户一样进入题库并提交代码。</p>
         <label>
           用户名
           <input name="username" autocomplete="username" required>
@@ -19,8 +21,11 @@
           密码
           <input name="password" type="password" autocomplete="current-password" required>
         </label>
-        <button type="submit">登录</button>
+        <button type="submit">进入后台</button>
         <p id="admin-message" class="muted"></p>
+        <div class="auth-links">
+          <a href="/">返回首页</a>
+        </div>
       </form>
     </main>
 

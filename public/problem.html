@@ -11,7 +11,7 @@
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="/">OJ</a>
+      <a class="brand" href="/">CodeJudge</a>
       <nav class="nav" id="auth-nav">
         <a href="/login.html">登录</a>
         <a href="/register.html">注册</a>
@@ -21,16 +21,32 @@
 
     <main class="workspace">
       <section class="problem-pane">
-        <h1 id="problem-title">题目</h1>
-        <div id="problem-meta" class="muted"></div>
+        <header class="problem-header">
+          <span class="eyebrow">Problem Brief</span>
+          <h1 id="problem-title">题目</h1>
+          <div id="problem-meta" class="problem-meta muted"></div>
+        </header>
         <article id="problem-content" class="statement"></article>
       </section>
 
       <section class="editor-pane">
-        <textarea id="code-editor"></textarea>
-        <div class="actions">
-          <button id="submit-code" type="button">提交</button>
-          <span id="submit-result" class="muted"></span>
+        <div class="editor-toolbar">
+          <div class="editor-title">
+            <span class="pill">C++17</span>
+            <h2>代码编辑器</h2>
+          </div>
+          <span class="pill">CodeMirror Local</span>
+        </div>
+
+        <div class="editor-frame">
+          <textarea id="code-editor"></textarea>
+        </div>
+
+        <div class="submit-dock">
+          <div class="actions">
+            <button id="submit-code" type="button">提交代码</button>
+          </div>
+          <span id="submit-result" class="muted">等待提交</span>
         </div>
       </section>
     </main>

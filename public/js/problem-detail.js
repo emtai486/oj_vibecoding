@@ -3,10 +3,34 @@ const problemId = params.get("id");
 const editor = createCppEditor(document.querySelector("#code-editor"));
 let loggedInUser = null;
 
+function escapeProblemHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function difficultyClass(value) {
+  const difficulty = String(value || "").toLowerCase();
+  return ["easy", "medium", "hard"].includes(difficulty) ? difficulty : "";
+}
+
+function setSubmitResult(kind, text) {
+  const resultView = document.querySelector("#submit-result");
+  resultView.className = kind ? `result-pill ${kind}` : "muted";
+  resultView.textContent = text;
+}
+
 function renderProblem(problem) {
   document.querySelector("#problem-title").textContent = problem.title;
-  document.querySelector("#problem-meta").textContent =
-    `${problem.difficulty} · ${problem.time_limit_ms} ms · ${problem.memory_limit_kb} KB`;
+  document.querySelector("#problem-meta").innerHTML = `
+    <span class="difficulty ${difficultyClass(problem.difficulty)}">${escapeProblemHtml(problem.difficulty)}</span>
+    <span class="pill">${escapeProblemHtml(problem.time_limit_ms)} ms</span>
+    <span class="pill">${escapeProblemHtml(problem.memory_limit_kb)} KB</span>
+    <span class="pill">${escapeProblemHtml(problem.compare_mode || "strict")}</span>
+  `;
   document.querySelector("#problem-content").textContent = [
     problem.description,
     "",
@@ -26,15 +50,18 @@ function renderProblem(problem) {
 
 function configureSubmitState() {
   const submitButton = document.querySelector("#submit-code");
-  const resultView = document.querySelector("#submit-result");
   if (!loggedInUser) {
     submitButton.disabled = true;
-    resultView.textContent = "登录后提交";
+    setSubmitResult("failed", "登录后提交");
     return;
   }
 
   submitButton.disabled = false;
-  resultView.textContent = solvedStorage.isSolved(problemId) ? "已通过" : "";
+  if (solvedStorage.isSolved(problemId)) {
+    setSubmitResult("accepted", "已通过");
+  } else {
+    setSubmitResult("pending", "等待提交");
+  }
 }
 
 async function loadProblem() {
@@ -54,13 +81,12 @@ async function loadProblem() {
 }
 
 document.querySelector("#submit-code").addEventListener("click", async () => {
-  const resultView = document.querySelector("#submit-result");
   if (!loggedInUser) {
-    resultView.textContent = "请先登录";
+    setSubmitResult("failed", "请先登录");
     return;
   }
 
-  resultView.textContent = "提交中";
+  setSubmitResult("pending", "提交中");
 
   try {
     const result = await api.post("/api/submit", {
@@ -68,15 +94,16 @@ document.querySelector("#submit-code").addEventListener("click", async () => {
       code: editor.getValue(),
     });
 
-    resultView.textContent = result.message;
     if (result.success && result.data?.result === "passed") {
       solvedStorage.markSolved(problemId);
-      resultView.textContent = "accepted";
+      setSubmitResult("accepted", "accepted");
     } else if (!result.success && result.message === "unauthorized") {
-      resultView.textContent = "请先登录";
+      setSubmitResult("failed", "请先登录");
+    } else {
+      setSubmitResult("failed", result.message || "failed");
     }
   } catch {
-    resultView.textContent = "提交失败";
+    setSubmitResult("failed", "提交失败");
   }
 });
 

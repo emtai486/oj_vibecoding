@@ -8,6 +8,11 @@ function escapeHtml(value) {
   })[ch]);
 }
 
+function difficultyClass(value) {
+  const difficulty = String(value || "").toLowerCase();
+  return ["easy", "medium", "hard"].includes(difficulty) ? difficulty : "";
+}
+
 async function requireAdminSession() {
   const protectedPage = document.querySelector("[data-admin-page]");
   if (!protectedPage) {
@@ -34,10 +39,13 @@ async function loadAdminProblems() {
     tbody.innerHTML = problems
       .map((problem) => `<tr>
         <td>${problem.id}</td>
-        <td>${escapeHtml(problem.title)}</td>
-        <td>${escapeHtml(problem.difficulty)}</td>
+        <td><a href="/problem.html?id=${encodeURIComponent(problem.id)}">${escapeHtml(problem.title)}</a></td>
+        <td><span class="difficulty ${difficultyClass(problem.difficulty)}">${escapeHtml(problem.difficulty)}</span></td>
         <td>
-          <button class="danger-button" data-delete-id="${problem.id}" type="button">删除</button>
+          <div class="table-actions">
+            <a class="button-link button-secondary table-action" href="/problem.html?id=${encodeURIComponent(problem.id)}">练习</a>
+            <button class="danger-button table-action" data-delete-id="${problem.id}" type="button">删除</button>
+          </div>
         </td>
       </tr>`)
       .join("");

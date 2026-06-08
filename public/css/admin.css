@@ -9,11 +9,44 @@
 
 .admin-form,
 .problem-form {
-  width: min(760px, 100%);
+  position: relative;
+  overflow: hidden;
+  width: min(820px, 100%);
+  display: grid;
+  gap: 18px;
+  padding: 28px;
+  margin: 0 auto;
+}
+
+.admin-form {
+  width: min(430px, 100%);
+}
+
+.problem-form {
+  align-items: start;
+}
+
+.problem-form > h1,
+.problem-form > .form-hint,
+.problem-form > button,
+.problem-form > p {
+  width: min(100%, 760px);
+}
+
+.form-section {
   display: grid;
   gap: 16px;
-  padding: 24px;
-  margin: 0 auto;
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.36);
+  padding: 18px;
+}
+
+.form-section h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 16px;
 }
 
 .form-grid {
@@ -23,14 +56,32 @@
 }
 
 .danger-button {
-  background: var(--danger);
+  border-color: rgba(244, 63, 94, 0.44);
+  background: linear-gradient(135deg, var(--danger), var(--danger-dark));
+  color: #fff1f2;
+  box-shadow: 0 12px 30px rgba(244, 63, 94, 0.16);
 }
 
 .danger-button:hover {
-  background: #7a271a;
+  border-color: rgba(251, 113, 133, 0.64);
+  background: linear-gradient(135deg, #fb7185, #e11d48);
+  box-shadow: 0 16px 40px rgba(244, 63, 94, 0.2);
+}
+
+.admin-page .panel {
+  margin-top: 6px;
 }
 
 @media (max-width: 760px) {
+  .admin-login {
+    padding: 18px;
+  }
+
+  .admin-form,
+  .problem-form {
+    padding: 22px;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
   }

@@ -9,12 +9,14 @@
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="/">OJ</a>
+      <a class="brand" href="/">CodeJudge</a>
     </header>
 
     <main class="form-page">
       <form id="login-form" class="form-panel">
+        <span class="eyebrow">User Session</span>
         <h1>用户登录</h1>
+        <p class="form-hint">普通用户登录后可进入题库并提交 C++ 代码；管理员请使用管理员入口。</p>
         <label>
           用户名
           <input name="username" autocomplete="username" required>
@@ -23,8 +25,12 @@
           密码
           <input name="password" type="password" autocomplete="current-password" required>
         </label>
-        <button type="submit">登录</button>
+        <button type="submit">进入题库</button>
         <p id="login-message" class="muted"></p>
+        <div class="auth-links">
+          <a href="/register.html">创建普通用户</a>
+          <a href="/admin/login.html">管理员登录</a>
+        </div>
       </form>
     </main>
 

@@ -66,6 +66,22 @@ std::optional<auth::SessionUser> current_user(
   return sessions->find_user_session(*session_id);
 }
 
+std::optional<auth::SessionAdmin> current_admin(
+    const httplib::Request& request,
+    const std::shared_ptr<auth::SessionStore>& sessions) {
+  const auto session_id = auth::cookie_value(request, "oj_admin_session");
+  if (!session_id.has_value()) {
+    return std::nullopt;
+  }
+  return sessions->find_admin_session(*session_id);
+}
+
+bool has_submit_session(const httplib::Request& request,
+                        const std::shared_ptr<auth::SessionStore>& sessions) {
+  return current_user(request, sessions).has_value() ||
+         current_admin(request, sessions).has_value();
+}
+
 oj::util::json::Value submit_result_json(const std::string& result) {
   return oj::util::json::Value::Object{{"result", result}};
 }
@@ -78,7 +94,7 @@ void register_submit_routes(httplib::Server& server,
   server.Post("/api/submit",
               [mysql_config, sessions](const httplib::Request& request,
                                        httplib::Response& response) {
-                if (!current_user(request, sessions).has_value()) {
+                if (!has_submit_session(request, sessions)) {
                   oj::util::send_error(response,
                                        httplib::StatusCode::Unauthorized_401,
                                        "unauthorized");
