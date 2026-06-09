@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -55,6 +56,23 @@ std::vector<oj::model::Testcase> one_hidden_test() {
   return {
       oj::model::Testcase{1, 1, "1 2\n", "3\n", false},
   };
+}
+
+std::set<std::string> judge_temp_children() {
+  const fs::path base = fs::absolute("var/judge_tmp");
+  std::set<std::string> entries;
+  std::error_code error;
+  if (!fs::exists(base, error)) {
+    return entries;
+  }
+
+  fs::directory_iterator it(base, error);
+  const fs::directory_iterator end;
+  while (!error && it != end) {
+    entries.insert(it->path().filename().string());
+    it.increment(error);
+  }
+  return entries;
 }
 
 TEST(UserPasswordTest, VerifiesSeededAndGeneratedHashes) {
@@ -144,7 +162,7 @@ TEST(SubmitApiContractTest, RejectsAnonymousSubmitBeforeParsingOrDatabase) {
 
   const auto route_pos = submit_api.find(R"(server.Post("/api/submit")");
   const auto auth_pos =
-      submit_api.find("if (!current_user(request, sessions).has_value())");
+      submit_api.find("if (!has_submit_session(request, sessions))");
   const auto parse_pos = submit_api.find("parse_json_body");
   const auto db_pos = submit_api.find("db::MySqlClient client(mysql_config)");
 
@@ -155,6 +173,8 @@ TEST(SubmitApiContractTest, RejectsAnonymousSubmitBeforeParsingOrDatabase) {
   EXPECT_LT(route_pos, auth_pos);
   EXPECT_LT(auth_pos, parse_pos);
   EXPECT_LT(auth_pos, db_pos);
+  expect_contains(submit_api, "current_user(request, sessions).has_value()");
+  expect_contains(submit_api, "current_admin(request, sessions).has_value()");
   expect_contains(submit_api, "httplib::StatusCode::Unauthorized_401");
   expect_contains(submit_api, R"("unauthorized")");
   expect_contains(submit_api, "JudgeService");
@@ -212,6 +232,68 @@ TEST(JudgeServiceTest, CompilesAndRunsHiddenTestcases) {
             oj::judge::JudgeResult::Failed);
 }
 
+TEST(JudgeServiceTest, RejectsCompilationErrorsAndCleansTempDirectory) {
+  oj::judge::JudgeService judge_service;
+  const auto problem = addition_problem();
+  const auto tests = one_hidden_test();
+  const auto before = judge_temp_children();
+
+  EXPECT_EQ(judge_service.judge(problem, tests, "int main( { return 0; }"),
+            oj::judge::JudgeResult::Failed);
+  EXPECT_EQ(judge_temp_children(), before);
+}
+
+TEST(JudgeServiceTest, AppliesFloatOneModeDuringJudge) {
+  oj::judge::JudgeService judge_service;
+  const auto problem = addition_problem("float_1");
+  const std::vector<oj::model::Testcase> tests{
+      {1, 1, "", "2.3\n", false},
+  };
+
+  constexpr const char* kAcceptedCode =
+      "#include <iostream>\n"
+      "int main(){std::cout << 2.34 << '\\n'; return 0;}\n";
+  constexpr const char* kRejectedCode =
+      "#include <iostream>\n"
+      "int main(){std::cout << 2.36 << '\\n'; return 0;}\n";
+
+  EXPECT_EQ(judge_service.judge(problem, tests, kAcceptedCode),
+            oj::judge::JudgeResult::Passed);
+  EXPECT_EQ(judge_service.judge(problem, tests, kRejectedCode),
+            oj::judge::JudgeResult::Failed);
+}
+
+TEST(JudgeServiceTest, EnforcesRuntimeResourceLimits) {
+  oj::judge::JudgeService judge_service;
+  const auto tests = one_hidden_test();
+
+  auto timeout_problem = addition_problem();
+  timeout_problem.time_limit_ms = 50;
+  constexpr const char* kTimeoutCode =
+      "#include <cstdint>\n"
+      "int main(){volatile std::uint64_t x = 0; while (true) { ++x; }}\n";
+  EXPECT_EQ(judge_service.judge(timeout_problem, tests, kTimeoutCode),
+            oj::judge::JudgeResult::Failed);
+
+  auto memory_problem = addition_problem();
+  memory_problem.memory_limit_kb = 65536;
+  constexpr const char* kMemoryLimitCode =
+      "#include <iostream>\n"
+      "#include <vector>\n"
+      "int main(){std::vector<char> data(200 * 1024 * 1024);"
+      "std::cout << data.size() << '\\n'; return 0;}\n";
+  EXPECT_EQ(judge_service.judge(memory_problem, tests, kMemoryLimitCode),
+            oj::judge::JudgeResult::Failed);
+
+  auto output_problem = addition_problem();
+  constexpr const char* kOutputLimitCode =
+      "#include <iostream>\n"
+      "#include <string>\n"
+      "int main(){std::cout << std::string(1100000, 'x'); return 0;}\n";
+  EXPECT_EQ(judge_service.judge(output_problem, tests, kOutputLimitCode),
+            oj::judge::JudgeResult::Failed);
+}
+
 TEST(FrontendUserFeatureTest, ImplementsProblemPagesAndSolvedStateContract) {
   const std::string storage = read_text(project_root / "public/js/storage.js");
   const std::string problem_detail =
@@ -266,7 +348,7 @@ TEST(AdminFeatureContractTest, ImplementsAdminApiAndFrontendFlow) {
   expect_contains(admin_js, "hidden_testcases");
 }
 
-TEST(SpecProgressTest, MarksOrdinaryUserFeaturesComplete) {
+TEST(SpecProgressTest, MarksOrdinaryUserAdminAndJudgeFeaturesComplete) {
   const std::string spec = read_text(project_root / "SPEC.md");
 
   expect_contains(spec, "- [x] 实现 GET /api/problems");
@@ -280,8 +362,28 @@ TEST(SpecProgressTest, MarksOrdinaryUserFeaturesComplete) {
   expect_contains(spec, "- [x] 实现题目详情页面");
   expect_contains(spec, "- [x] 实现 localStorage 完成状态");
   expect_contains(spec, "- [x] 实现 POST /api/admin/login");
+  expect_contains(spec, "- [x] 实现 POST /api/admin/logout");
+  expect_contains(spec, "- [x] 实现管理员 session/cookie");
+  expect_contains(spec, "- [x] 实现 POST /api/admin/problems");
   expect_contains(spec, "- [x] 实现 DELETE /api/admin/problems/{id}");
+  expect_contains(spec, "- [x] 实现管理员登录页");
   expect_contains(spec, "- [x] 实现管理员后台页");
+  expect_contains(spec, "- [x] 实现新增题目页");
+  expect_contains(spec, "- [x] 实现删除题目功能");
+  expect_contains(spec, "- [x] 创建临时工作目录");
+  expect_contains(spec, "- [x] 写入用户代码文件");
+  expect_contains(spec, "- [x] 调用 g++ 编译");
+  expect_contains(spec, "- [x] 捕获编译结果");
+  expect_contains(spec, "- [x] 执行用户程序");
+  expect_contains(spec, "- [x] 传入测试用例 stdin");
+  expect_contains(spec, "- [x] 捕获 stdout");
+  expect_contains(spec, "- [x] 限制运行时间");
+  expect_contains(spec, "- [x] 限制内存");
+  expect_contains(spec, "- [x] 限制输出大小");
+  expect_contains(spec, "- [x] 实现 strict 比较");
+  expect_contains(spec, "- [x] 实现 float_1 比较");
+  expect_contains(spec, "- [x] 实现并发判题限制");
+  expect_contains(spec, "- [x] 清理临时文件");
 }
 
 }  // namespace

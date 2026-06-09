@@ -49,6 +49,15 @@ make test
 make test-gtest
 ```
 
+接口级自动化测试：
+
+```bash
+make test-api-curl
+make test-api-python
+```
+
+其中 Python 接口测试包含 12.6 判题回归用例，覆盖 `strict`、`float_1`、空代码、题目不存在、隐藏测试用例、超时、内存限制和输出限制。
+
 ## 启动
 
 ```bash
@@ -105,4 +114,4 @@ mysql -u oj_user -p oj < sql/seed.sql
 管理员: admin / password
 ```
 
-当前代码已完成 `SPEC.md` 12.1 初始化、12.2 数据库脚本、12.3 后端基础、12.4 普通用户功能和 12.5 管理员功能。
+当前代码已完成 `SPEC.md` 12.1 初始化、12.2 数据库脚本、12.3 后端基础、12.4 普通用户功能、12.5 管理员功能和 12.6 判题系统。

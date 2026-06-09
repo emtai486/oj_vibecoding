@@ -1,15 +1,24 @@
 # 基于 curl 的接口自动化测试文档
 
-本文档总结当前项目的 curl 接口自动化测试方案，覆盖第一批普通用户主链路和第二批管理员链路。测试脚本位于：
+本文档总结当前项目的接口自动化测试方案，覆盖第一批普通用户主链路、第二批管理员链路和第三批 12.6 判题接口回归。curl 脚本用于覆盖主链路基线，Python 脚本用于复用同一套 HTTP 流程并补充更复杂的判题 payload。
+
+测试脚本位于：
 
 ```text
 scripts/api_curl_test.sh
+scripts/api_python_test.py
 ```
 
 推荐通过 Makefile 执行：
 
 ```bash
 make test-api-curl
+```
+
+运行 Python 版完整接口回归：
+
+```bash
+make test-api-python
 ```
 
 ## 1. 测试目标
@@ -20,6 +29,7 @@ make test-api-curl
 
 - 第一批：普通用户主链路。
 - 第二批：管理员题目管理链路。
+- 第三批：12.6 判题接口回归，由 Python 脚本覆盖 strict、float_1、超时、资源限制、隐藏用例等提交行为。
 
 ## 2. 前置条件
 
@@ -85,6 +95,7 @@ mysql -u oj_user -p oj < sql/seed.sql
 ```bash
 make
 make test-api-curl
+make test-api-python
 ```
 
 等价于：
@@ -110,6 +121,7 @@ bash scripts/api_curl_test.sh config/app.conf
 ```bash
 make
 make test-api-curl-basic
+make test-api-python-basic
 ```
 
 等价于：
@@ -124,12 +136,14 @@ bash scripts/api_curl_test.sh --basic config/app.example.conf
 
 ```bash
 OJ_API_BASE_URL=http://127.0.0.1:8080 bash scripts/api_curl_test.sh --no-start
+OJ_API_BASE_URL=http://127.0.0.1:8080 python3 scripts/api_python_test.py --no-start config/app.conf
 ```
 
 也可以指定完整模式：
 
 ```bash
 OJ_API_BASE_URL=http://127.0.0.1:8080 bash scripts/api_curl_test.sh --full --no-start
+OJ_API_BASE_URL=http://127.0.0.1:8080 python3 scripts/api_python_test.py --full --no-start config/app.conf
 ```
 
 ## 4. 第一批：普通用户主链路覆盖
@@ -184,7 +198,32 @@ OJ_API_BASE_URL=http://127.0.0.1:8080 bash scripts/api_curl_test.sh --full --no-
 - 重复删除同一题目返回 `404 not found`。
 - `POST /api/admin/logout` 退出后 `GET /api/admin/me` 返回 `logged_in=false`。
 
-## 6. 测试数据说明
+## 6. 第三批：12.6 判题接口回归覆盖
+
+第三批在 `SPEC.md` 12.6 判题系统完成后补充，重点不再只依赖判题服务单元测试，而是通过真实 `/api/submit` HTTP 请求验证接口层、数据库题目配置、隐藏测试用例和判题服务之间的协作。
+
+当前第三批由 `scripts/api_python_test.py` 覆盖，原因是这些用例包含较长 C++ 源码 payload，Python 标准库脚本比 shell 字符串更稳定、更容易维护。
+
+覆盖项：
+
+- 未登录 `POST /api/submit` 返回 `401 unauthorized`，不进入判题。
+- 登录后提交 A+B 正确代码，`strict` 完全匹配输出，返回 `passed`。
+- 登录后提交 A+B 错误答案，返回 `failed`。
+- 登录后提交编译错误代码，返回 `failed`。
+- 登录后提交空代码，返回 `failed`。
+- 登录后提交不存在题目，返回 `failed`。
+- `strict` 模式下缺少末尾换行，返回 `failed`。
+- `float_1` 模式下输出按一位小数比较，通过用例返回 `passed`。
+- `float_1` 模式下一位小数不匹配，返回 `failed`。
+- 运行超过题目时间限制时返回 `failed`。
+- 申请超过题目内存限制时返回 `failed`。
+- 输出超过大小限制时返回 `failed`。
+- 管理员创建题目时隐藏测试用例为空，返回 `400 invalid problem`。
+- 样例输出正确但隐藏测试用例不匹配时，提交返回 `failed`。
+
+这些用例共同覆盖 `SPEC.md` 12.6 中的编译、运行、stdin/stdout、严格比较、小数比较、时间限制、内存限制、输出限制、隐藏用例和失败收敛逻辑。
+
+## 7. 测试数据说明
 
 脚本会使用以下数据：
 
@@ -192,6 +231,7 @@ OJ_API_BASE_URL=http://127.0.0.1:8080 bash scripts/api_curl_test.sh --full --no-
 - 管理员登录：`admin / password`。
 - 注册用户：动态生成，格式类似 `api_test_<timestamp>_<pid>`。
 - 管理员新增题目：动态生成标题，格式类似 `Curl Admin Problem <test_user>`。
+- Python 判题回归使用种子题目 `1` A+B Problem 和 `2` Average Score。
 
 注意：
 
@@ -207,7 +247,7 @@ DELETE FROM problems WHERE title LIKE 'Curl Admin Problem api_test_%';
 
 `testcases` 表通过外键 `ON DELETE CASCADE` 自动删除关联测试用例。
 
-## 7. 成功输出
+## 8. 成功输出
 
 成功时会看到类似输出：
 
@@ -217,17 +257,24 @@ PASS: POST /api/_echo
 PASS: GET /api/problems
 PASS: POST /api/user/login
 PASS: POST /api/submit accepted code
+PASS: POST /api/submit strict newline mismatch
+PASS: POST /api/submit float_1 accepted
+PASS: POST /api/submit timeout
+PASS: POST /api/submit memory limit
+PASS: POST /api/submit output limit
 PASS: POST /api/admin/login
 PASS: POST /api/admin/problems
+PASS: POST /api/admin/problems empty hidden testcases
+PASS: POST /api/submit hidden testcase mismatch
 PASS: DELETE /api/admin/problems/{created}
 PASS: GET /api/admin/me after logout
 ```
 
 所有用例均显示 `PASS` 且命令退出码为 `0`，表示测试通过。
 
-## 8. 常见失败排查
+## 9. 常见失败排查
 
-### 8.1 `build/oj_server not found`
+### 9.1 `build/oj_server not found`
 
 先执行构建：
 
@@ -235,7 +282,7 @@ PASS: GET /api/admin/me after logout
 make
 ```
 
-### 8.2 `config not found: config/app.conf`
+### 9.2 `config not found: config/app.conf`
 
 复制并修改配置：
 
@@ -243,7 +290,7 @@ make
 cp config/app.example.conf config/app.conf
 ```
 
-### 8.3 `database error`
+### 9.3 `database error`
 
 检查：
 
@@ -259,7 +306,7 @@ cp config/app.example.conf config/app.conf
 mysql -u oj_user -p oj -e "SELECT id, username FROM users; SELECT id, username FROM admins;"
 ```
 
-### 8.4 管理员或普通用户登录失败
+### 9.4 管理员或普通用户登录失败
 
 重新导入种子数据：
 
@@ -269,7 +316,7 @@ mysql -u oj_user -p oj < sql/seed.sql
 
 种子脚本会通过 `ON DUPLICATE KEY UPDATE` 重置 `user1` 和 `admin` 的密码 hash。
 
-### 8.5 服务端口无法监听
+### 9.5 服务端口无法监听
 
 脚本默认尝试 `18080-18120`。如果这些端口被占用，可以指定起始端口：
 
@@ -279,7 +326,7 @@ OJ_API_TEST_PORT=19080 make test-api-curl
 
 如果运行环境限制本机端口监听，需要在允许监听本机端口的环境中执行。
 
-### 8.6 提交测试失败
+### 9.6 提交测试失败
 
 检查：
 
@@ -288,19 +335,18 @@ OJ_API_TEST_PORT=19080 make test-api-curl
 - `problem_id=1` 的 A+B 种子题目是否存在。
 - `testcases` 表中该题目的样例和隐藏用例是否存在。
 
-## 9. 后续扩展建议
+## 10. 后续扩展建议
 
-后续实现 `SPEC.md` 12.6 判题系统后，可以在同一脚本中继续补充：
+当前已经覆盖 12.6 的主要接口级回归。后续仍可继续扩展：
 
-- 超时代码返回失败。
-- 内存超限返回失败。
-- 输出过大返回失败。
-- `strict` 比较边界用例。
-- `float_1` 比较边界用例。
-- 并发提交限制。
+- 并发提交限制的接口级压力测试。
+- 更细粒度的错误分类，例如区分 compile error、time limit exceeded、wrong answer。
+- 管理员创建自定义时间限制和内存限制题目后，再提交对应边界代码。
+- 判题临时目录残留检查的端到端用例。
 
 新增接口时建议同步更新：
 
 - `API.md`：先写清 API 合同、请求、响应、错误码。
 - `scripts/api_curl_test.sh`：再补 curl 自动化用例。
+- `scripts/api_python_test.py`：复杂 payload 或判题场景优先补 Python 自动化用例。
 - 本文档：同步补充覆盖项和执行说明。

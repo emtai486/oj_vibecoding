@@ -387,7 +387,7 @@ Set-Cookie: oj_user_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax
 POST /api/submit
 ```
 
-认证要求：普通用户登录。
+认证要求：普通用户或管理员登录。
 
 请求：
 
@@ -765,21 +765,23 @@ curl -sS -X POST "$BASE_URL/api/admin/logout" \
   --data '{}'
 ```
 
-## 8. curl 接口自动化测试
+## 8. 接口自动化测试
 
 测试文件：
 
 ```text
 scripts/api_curl_test.sh
+scripts/api_python_test.py
 ```
 
-测试脚本严格通过 `curl` 构造 HTTP 请求并校验 HTTP 状态码、统一 JSON envelope 和关键响应字段。
+`scripts/api_curl_test.sh` 严格通过 `curl` 构造 HTTP 请求并校验 HTTP 状态码、统一 JSON envelope 和关键响应字段。`scripts/api_python_test.py` 使用 Python 标准库完成同一批主链路回归，并补充更适合用代码组织 payload 的 12.6 判题接口回归。
 
 基础接口测试不依赖数据库：
 
 ```bash
 make
 make test-api-curl-basic
+make test-api-python-basic
 ```
 
 基础用例覆盖：
@@ -805,15 +807,17 @@ mysql -u oj_user -p oj < sql/seed.sql
 ```bash
 make
 make test-api-curl
+make test-api-python
 ```
 
 也可以对已启动的服务直接运行：
 
 ```bash
 OJ_API_BASE_URL=http://127.0.0.1:8080 bash scripts/api_curl_test.sh --no-start
+OJ_API_BASE_URL=http://127.0.0.1:8080 python3 scripts/api_python_test.py --no-start config/app.conf
 ```
 
-完整用例覆盖：
+完整用例第一批覆盖普通用户主链路：
 
 - `GET /api/problems`
 - `GET /api/problems/1`
@@ -827,6 +831,10 @@ OJ_API_BASE_URL=http://127.0.0.1:8080 bash scripts/api_curl_test.sh --no-start
 - 登录后错误代码提交返回 `failed`
 - 登录后编译错误代码提交返回 `failed`
 - 登录后空代码提交返回 `failed`
+- 登录后题目不存在提交返回 `failed`
+
+第二批覆盖管理员题目管理链路：
+
 - `POST /api/admin/login` 管理员错误密码返回 `401 invalid username or password`
 - `POST /api/admin/login` 管理员正确登录并写入 `oj_admin_session` Cookie
 - `GET /api/admin/me` 管理员登录后返回 `logged_in=true`
@@ -840,3 +848,18 @@ OJ_API_BASE_URL=http://127.0.0.1:8080 bash scripts/api_curl_test.sh --no-start
 - 删除后 `GET /api/problems/{id}` 返回 `404 not found`
 - 重复删除同一题目返回 `404 not found`
 - `POST /api/admin/logout` 退出后 `GET /api/admin/me` 返回 `logged_in=false`
+
+第三批覆盖 `SPEC.md` 12.6 判题接口回归，当前由 Python 自动化脚本执行：
+
+- `strict` 模式下完全匹配输出返回 `passed`。
+- `strict` 模式下缺少末尾换行返回 `failed`。
+- `float_1` 模式下小数按一位比较，相同一位结果返回 `passed`。
+- `float_1` 模式下一位小数不匹配返回 `failed`。
+- 空代码返回 `failed`。
+- 题目不存在返回 `failed`。
+- 管理员新增题目时隐藏测试用例为空返回 `400 invalid problem`。
+- 样例可过但隐藏测试用例不匹配时提交返回 `failed`。
+- 编译错误返回 `failed`。
+- 运行超时返回 `failed`。
+- 内存超限返回 `failed`。
+- 输出超限返回 `failed`。

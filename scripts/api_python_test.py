@@ -158,6 +158,28 @@ def assert_cookie(cookie_jar: http.cookiejar.CookieJar, name: str, label: str) -
         fail(f"{label} should store {name} cookie")
 
 
+def assert_submit_result(
+    base_url: str,
+    cookie_jar: http.cookiejar.CookieJar,
+    label: str,
+    problem_id: int,
+    code: str,
+    expected_message: str,
+    expected_result: str,
+    timeout: float = 10.0,
+) -> None:
+    result = request_json(
+        base_url,
+        "POST",
+        "/api/submit",
+        {"problem_id": problem_id, "code": code},
+        cookie_jar,
+        timeout=timeout,
+    )
+    assert_response(label, result, 200, True, expected_message)
+    assert_body_contains(label, result, f'"result":"{expected_result}"')
+
+
 def start_server(config_path: Path, tmp_dir: Path) -> tuple[str, subprocess.Popen[bytes]]:
     if not config_path.exists():
         fail(f"config not found: {config_path}")
@@ -341,56 +363,157 @@ def run_full_checks(base_url: str) -> None:
         "using namespace std;\n"
         "int main(){int a,b;if(cin>>a>>b){cout<<a+b<<endl;}return 0;}\n"
     )
-    result = request_json(
+    assert_submit_result(
         base_url,
-        "POST",
-        "/api/submit",
-        {"problem_id": 1, "code": accepted_code},
         user_cookies,
+        "POST /api/submit accepted code",
+        1,
+        accepted_code,
+        "accepted",
+        "passed",
     )
-    assert_response("POST /api/submit accepted code", result, 200, True, "accepted")
-    assert_body_contains("POST /api/submit accepted code", result, '"result":"passed"')
 
     wrong_code = (
         "#include <bits/stdc++.h>\n"
         "using namespace std;\n"
         "int main(){cout<<0<<endl;return 0;}\n"
     )
-    result = request_json(
+    assert_submit_result(
         base_url,
-        "POST",
-        "/api/submit",
-        {"problem_id": 1, "code": wrong_code},
         user_cookies,
+        "POST /api/submit wrong answer",
+        1,
+        wrong_code,
+        "failed",
+        "failed",
     )
-    assert_response("POST /api/submit wrong answer", result, 200, True, "failed")
-    assert_body_contains("POST /api/submit wrong answer", result, '"result":"failed"')
 
-    result = request_json(
+    assert_submit_result(
         base_url,
-        "POST",
-        "/api/submit",
-        {"problem_id": 1, "code": "int main( {"},
         user_cookies,
+        "POST /api/submit compile error",
+        1,
+        "int main( {",
+        "failed",
+        "failed",
     )
-    assert_response("POST /api/submit compile error", result, 200, True, "failed")
-    assert_body_contains("POST /api/submit compile error", result, '"result":"failed"')
 
-    result = request_json(
-        base_url, "POST", "/api/submit", {"problem_id": 1, "code": ""}, user_cookies
-    )
-    assert_response("POST /api/submit empty code", result, 200, True, "failed")
-    assert_body_contains("POST /api/submit empty code", result, '"result":"failed"')
-
-    result = request_json(
+    assert_submit_result(
         base_url,
-        "POST",
-        "/api/submit",
-        {"problem_id": 999999999, "code": "int main(){return 0;}"},
         user_cookies,
+        "POST /api/submit empty code",
+        1,
+        "",
+        "failed",
+        "failed",
     )
-    assert_response("POST /api/submit missing problem", result, 200, True, "failed")
-    assert_body_contains("POST /api/submit missing problem", result, '"result":"failed"')
+
+    assert_submit_result(
+        base_url,
+        user_cookies,
+        "POST /api/submit missing problem",
+        999999999,
+        "int main(){return 0;}",
+        "failed",
+        "failed",
+    )
+
+    strict_missing_newline_code = (
+        "#include <bits/stdc++.h>\n"
+        "using namespace std;\n"
+        "int main(){int a,b;if(cin>>a>>b){cout<<a+b;}return 0;}\n"
+    )
+    assert_submit_result(
+        base_url,
+        user_cookies,
+        "POST /api/submit strict newline mismatch",
+        1,
+        strict_missing_newline_code,
+        "failed",
+        "failed",
+    )
+
+    float_one_accepted_code = (
+        "#include <bits/stdc++.h>\n"
+        "using namespace std;\n"
+        "int main(){int n;if(!(cin>>n))return 0;double sum=0,x;"
+        "for(int i=0;i<n;i++){cin>>x;sum+=x;}"
+        "cout<<fixed<<setprecision(2)<<sum/n<<'\\n';return 0;}\n"
+    )
+    assert_submit_result(
+        base_url,
+        user_cookies,
+        "POST /api/submit float_1 accepted",
+        2,
+        float_one_accepted_code,
+        "accepted",
+        "passed",
+    )
+
+    float_one_rejected_code = (
+        "#include <bits/stdc++.h>\n"
+        "using namespace std;\n"
+        "int main(){int n;if(!(cin>>n))return 0;double sum=0,x;"
+        "for(int i=0;i<n;i++){cin>>x;sum+=x;}"
+        "cout<<fixed<<setprecision(2)<<(sum/n+0.06)<<'\\n';return 0;}\n"
+    )
+    assert_submit_result(
+        base_url,
+        user_cookies,
+        "POST /api/submit float_1 mismatch",
+        2,
+        float_one_rejected_code,
+        "failed",
+        "failed",
+    )
+
+    timeout_code = (
+        "#include <cstdint>\n"
+        "int main(){volatile std::uint64_t x=0;while(true){++x;}return 0;}\n"
+    )
+    assert_submit_result(
+        base_url,
+        user_cookies,
+        "POST /api/submit timeout",
+        1,
+        timeout_code,
+        "failed",
+        "failed",
+        timeout=15.0,
+    )
+
+    memory_limit_code = (
+        "#include <iostream>\n"
+        "#include <vector>\n"
+        "int main(){std::vector<char> data(300*1024*1024);"
+        "std::cout<<data.size()<<'\\n';return 0;}\n"
+    )
+    assert_submit_result(
+        base_url,
+        user_cookies,
+        "POST /api/submit memory limit",
+        1,
+        memory_limit_code,
+        "failed",
+        "failed",
+        timeout=15.0,
+    )
+
+    output_limit_code = (
+        "#include <iostream>\n"
+        "#include <string>\n"
+        "int main(){std::cout<<std::string(1100000,'x');return 0;}\n"
+    )
+    assert_submit_result(
+        base_url,
+        user_cookies,
+        "POST /api/submit output limit",
+        1,
+        output_limit_code,
+        "failed",
+        "failed",
+        timeout=15.0,
+    )
 
     result = request_json(base_url, "POST", "/api/user/logout", {}, user_cookies)
     assert_response("POST /api/user/logout logged in", result, 200, True, "logged out")
@@ -433,6 +556,31 @@ def run_full_checks(base_url: str) -> None:
     )
     assert_response("POST /api/admin/problems invalid", result, 400, False, "invalid problem")
 
+    no_hidden_body = {
+        "title": f"No Hidden Problem {test_user}",
+        "difficulty": "easy",
+        "description": "Invalid fixture without hidden testcases.",
+        "input_format": "No input.",
+        "output_format": "One integer.",
+        "sample_input": "",
+        "sample_output": "0\n",
+        "time_limit_ms": 1000,
+        "memory_limit_kb": 131072,
+        "compare_mode": "strict",
+        "samples": [{"input": "", "expected_output": "0\n"}],
+        "hidden_testcases": [],
+    }
+    result = request_json(
+        base_url, "POST", "/api/admin/problems", no_hidden_body, admin_cookies
+    )
+    assert_response(
+        "POST /api/admin/problems empty hidden testcases",
+        result,
+        400,
+        False,
+        "invalid problem",
+    )
+
     admin_title = f"Curl Admin Problem {test_user}"
     create_body = {
         "title": admin_title,
@@ -471,6 +619,20 @@ def run_full_checks(base_url: str) -> None:
     assert_body_contains("GET /api/problems/{created}", result, f'"title":"{admin_title}"')
     assert_body_contains("GET /api/problems/{created}", result, '"input":"2 3\\n"')
     assert_body_not_contains("GET /api/problems/{created} hidden testcase", result, "7 8")
+
+    sample_only_code = (
+        "#include <iostream>\n"
+        "int main(){std::cout << 5 << '\\n'; return 0;}\n"
+    )
+    assert_submit_result(
+        base_url,
+        admin_cookies,
+        "POST /api/submit hidden testcase mismatch",
+        created_problem_id,
+        sample_only_code,
+        "failed",
+        "failed",
+    )
 
     result = request_json(
         base_url, "DELETE", f"/api/admin/problems/{created_problem_id}", cookie_jar=admin_cookies

@@ -136,6 +136,10 @@ void test_user_feature_sources(const fs::path& root) {
       read_text(root / "src/db/admin_repository.cpp");
   const std::string problem_repository =
       read_text(root / "src/db/problem_repository.cpp");
+  const std::string judge_service =
+      read_text(root / "src/judge/judge_service.cpp");
+  const std::string comparator =
+      read_text(root / "src/judge/comparator.cpp");
   const std::string user_api = read_text(root / "src/api/user_api.cpp");
   const std::string problem_api = read_text(root / "src/api/problem_api.cpp");
   const std::string storage = read_text(root / "public/js/storage.js");
@@ -163,6 +167,8 @@ void test_user_feature_sources(const fs::path& root) {
                   "user API should expose logout");
   expect_contains(submit_api, "unauthorized",
                   "submit API should reject anonymous users");
+  expect_contains(submit_api, "has_submit_session",
+                  "submit API should accept authenticated submitters");
   expect_contains(submit_api, "JudgeService",
                   "submit API should call judge service");
   expect_contains(admin_repository, "FROM admins WHERE username",
@@ -181,6 +187,34 @@ void test_user_feature_sources(const fs::path& root) {
                   "admin problem creation should persist testcases");
   expect_contains(problem_repository, "DELETE FROM problems WHERE id",
                   "problem repository should physically delete problems");
+  expect_contains(judge_service, "TempDirectory",
+                  "judge service should create a temporary directory");
+  expect_contains(judge_service, "main.cpp",
+                  "judge service should write user code to a C++ source file");
+  expect_contains(judge_service, R"({"g++", "main.cpp")",
+                  "judge service should compile with g++");
+  expect_contains(judge_service, "compile_code(temp.path())",
+                  "judge service should capture compile success or failure");
+  expect_contains(judge_service, R"({"./main"})",
+                  "judge service should execute the compiled program");
+  expect_contains(judge_service, "stdin_path",
+                  "judge service should pass testcase input to stdin");
+  expect_contains(judge_service, "stdout_path",
+                  "judge service should capture stdout");
+  expect_contains(judge_service, "timeout_ms",
+                  "judge service should enforce a runtime limit");
+  expect_contains(judge_service, "RLIMIT_AS",
+                  "judge service should enforce a memory limit");
+  expect_contains(judge_service, "RLIMIT_FSIZE",
+                  "judge service should enforce an output size limit");
+  expect_contains(judge_service, "kMaxConcurrentJudges",
+                  "judge service should limit concurrent judging");
+  expect_contains(judge_service, "remove_all(path_",
+                  "judge service should clean temporary files");
+  expect_contains(comparator, R"(compare_mode == "float_1")",
+                  "judge comparator should support float_1 mode");
+  expect_contains(comparator, "return actual == expected",
+                  "judge comparator should support strict mode");
   expect_contains(admin_js, "/api/admin/me",
                   "admin pages should check admin login state");
   expect_contains(admin_js, "data-delete-id",
@@ -211,10 +245,30 @@ void test_spec_progress(const fs::path& root) {
                   "SPEC 12.4 localStorage item should be complete");
   expect_contains(spec, "- [x] 实现 POST /api/admin/login",
                   "SPEC 12.5 admin login item should be complete");
+  expect_contains(spec, "- [x] 实现 POST /api/admin/problems",
+                  "SPEC 12.5 admin create item should be complete");
   expect_contains(spec, "- [x] 实现管理员 session/cookie",
                   "SPEC 12.5 admin session item should be complete");
   expect_contains(spec, "- [x] 实现 DELETE /api/admin/problems/{id}",
                   "SPEC 12.5 admin delete item should be complete");
+  expect_contains(spec, "- [x] 创建临时工作目录",
+                  "SPEC 12.6 temp directory item should be complete");
+  expect_contains(spec, "- [x] 调用 g++ 编译",
+                  "SPEC 12.6 compile item should be complete");
+  expect_contains(spec, "- [x] 限制运行时间",
+                  "SPEC 12.6 time limit item should be complete");
+  expect_contains(spec, "- [x] 限制内存",
+                  "SPEC 12.6 memory limit item should be complete");
+  expect_contains(spec, "- [x] 限制输出大小",
+                  "SPEC 12.6 output limit item should be complete");
+  expect_contains(spec, "- [x] 实现 strict 比较",
+                  "SPEC 12.6 strict compare item should be complete");
+  expect_contains(spec, "- [x] 实现 float_1 比较",
+                  "SPEC 12.6 float compare item should be complete");
+  expect_contains(spec, "- [x] 实现并发判题限制",
+                  "SPEC 12.6 concurrency item should be complete");
+  expect_contains(spec, "- [x] 清理临时文件",
+                  "SPEC 12.6 cleanup item should be complete");
 }
 
 }  // namespace

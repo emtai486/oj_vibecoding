@@ -21,7 +21,7 @@ SRCS := $(shell find src -name '*.cpp')
 APP_LIB_SRCS := $(filter-out src/main.cpp,$(SRCS))
 OBJS := $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 
-.PHONY: all clean check-db test test-gtest test-api-curl test-api-curl-basic test-api-python test-api-python-basic
+.PHONY: all clean check-db deploy-build deploy-init-db deploy-start deploy-verify deploy-verify-basic test test-gtest test-api-curl test-api-curl-basic test-api-python test-api-python-basic
 
 all: $(TARGET)
 
@@ -35,6 +35,21 @@ $(BUILD_DIR)/%.o: %.cpp
 
 check-db: $(TARGET)
 	./$(TARGET) --check-db config/app.example.conf
+
+deploy-build:
+	bash scripts/build.sh
+
+deploy-init-db:
+	bash scripts/init_db.sh config/app.conf
+
+deploy-start: $(TARGET)
+	bash scripts/start_server.sh config/app.conf
+
+deploy-verify:
+	bash scripts/deploy_verify.sh config/app.conf
+
+deploy-verify-basic:
+	bash scripts/deploy_verify.sh --basic config/app.example.conf
 
 test: $(INIT_TEST_TARGET) $(DB_SQL_TEST_TARGET) $(BACKEND_FOUNDATION_TEST_TARGET) $(USER_FEATURE_TEST_TARGET)
 	./$(INIT_TEST_TARGET) .
