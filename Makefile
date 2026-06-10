@@ -8,6 +8,7 @@ USER_FEATURE_TEST_TARGET := $(BUILD_DIR)/tests/user_feature_test
 DEPLOYMENT_ACCEPTANCE_TEST_TARGET := $(BUILD_DIR)/tests/deployment_acceptance_test
 GTEST_BACKEND_FOUNDATION_TARGET := $(BUILD_DIR)/tests/backend_foundation_gtest
 GTEST_USER_FEATURE_TARGET := $(BUILD_DIR)/tests/user_feature_gtest
+RESET_WEB_TEST_DB_TARGET := $(BUILD_DIR)/tools/reset_web_test_db
 
 MYSQL_CFLAGS := $(shell mysql_config --cflags)
 MYSQL_LIBS := $(shell mysql_config --libs)
@@ -22,7 +23,7 @@ SRCS := $(shell find src -name '*.cpp')
 APP_LIB_SRCS := $(filter-out src/main.cpp,$(SRCS))
 OBJS := $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 
-.PHONY: all clean check-db deploy-build deploy-init-db deploy-start deploy-verify deploy-verify-basic deploy-verify-strict test test-gtest test-api-curl test-api-curl-basic test-api-python test-api-python-basic
+.PHONY: all clean check-db deploy-build deploy-init-db deploy-start deploy-verify deploy-verify-basic deploy-verify-strict reset-web-test-db test test-gtest test-api-curl test-api-curl-basic test-api-python test-api-python-basic
 
 all: $(TARGET)
 
@@ -55,6 +56,9 @@ deploy-verify-basic:
 deploy-verify-strict:
 	bash scripts/deploy_verify.sh --strict-os config/app.conf
 
+reset-web-test-db: $(RESET_WEB_TEST_DB_TARGET)
+	./$(RESET_WEB_TEST_DB_TARGET) config/app.conf --yes
+
 test: $(INIT_TEST_TARGET) $(DB_SQL_TEST_TARGET) $(BACKEND_FOUNDATION_TEST_TARGET) $(USER_FEATURE_TEST_TARGET) $(DEPLOYMENT_ACCEPTANCE_TEST_TARGET)
 	./$(INIT_TEST_TARGET) .
 	./$(DB_SQL_TEST_TARGET) .
@@ -85,6 +89,10 @@ $(USER_FEATURE_TEST_TARGET): tests/cpp/user_feature_test.cpp src/auth/password.c
 $(DEPLOYMENT_ACCEPTANCE_TEST_TARGET): tests/cpp/deployment_acceptance_test.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $^ -o $@
+
+$(RESET_WEB_TEST_DB_TARGET): tools/reset_web_test_db.cpp src/config/config.cpp src/db/mysql_client.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -o $@ $(LDLIBS)
 
 test-api-curl: $(TARGET)
 	bash scripts/api_curl_test.sh config/app.conf
