@@ -22,7 +22,7 @@ Modes:
   basic  Build and verify local dependencies, C++ compile/run, and static assets.
 
 Options:
-  --strict-os   Fail unless /etc/os-release reports Ubuntu 24.04.
+  --strict-os   Fail unless /etc/os-release reports Ubuntu 22.04.
   --no-init-db  Do not import sql/schema.sql and sql/seed.sql before full checks.
 USAGE
 }
@@ -124,22 +124,22 @@ trap 'if [[ -n "$SERVER_PID" ]]; then kill "$SERVER_PID" >/dev/null 2>&1 || true
 check_os() {
   if [[ ! -f /etc/os-release ]]; then
     [[ "$STRICT_OS" -eq 0 ]] || fail "/etc/os-release not found"
-    warn "/etc/os-release not found; cannot verify Ubuntu 24.04"
+    warn "/etc/os-release not found; cannot verify Ubuntu 22.04"
     return
   fi
 
   # shellcheck disable=SC1091
   . /etc/os-release
-  if [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "24.04" ]]; then
-    pass "Ubuntu 24.04 environment detected"
+  if [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "22.04" ]]; then
+    pass "Ubuntu 22.04 environment detected"
     return
   fi
 
   local current="${PRETTY_NAME:-unknown Linux}"
   if [[ "$STRICT_OS" -eq 1 ]]; then
-    fail "expected Ubuntu 24.04, got $current"
+    fail "expected Ubuntu 22.04, got $current. This project currently treats the existing Ubuntu 22.04 server as the final acceptance environment."
   fi
-  warn "expected Ubuntu 24.04 for final deployment verification; current environment is $current"
+  warn "expected Ubuntu 22.04 for final deployment verification; current environment is $current"
 }
 
 check_not_root() {

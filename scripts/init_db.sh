@@ -33,6 +33,21 @@ config_value() {
   ' "$CONFIG_PATH" 2>/dev/null || echo "$default_value"
 }
 
+write_client_option() {
+  local key="$1"
+  local value="$2"
+
+  case "$value" in
+    *$'\n'*|*$'\r'*)
+      fail "mysql config value for $key must not contain newlines"
+      ;;
+  esac
+
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  printf '%s="%s"\n' "$key" "$value" >>"$CLIENT_CONFIG"
+}
+
 command -v mysql >/dev/null || fail "mysql client not found"
 [[ -f "$CONFIG_PATH" ]] || fail "config not found: $CONFIG_PATH"
 [[ -f sql/schema.sql ]] || fail "sql/schema.sql not found"
@@ -54,14 +69,12 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 CLIENT_CONFIG="$TMP_DIR/mysql-client.cnf"
 chmod 700 "$TMP_DIR"
-cat >"$CLIENT_CONFIG" <<EOF
-[client]
-host=$MYSQL_HOST
-port=$MYSQL_PORT
-user=$MYSQL_USER
-password=$MYSQL_PASSWORD
-default-character-set=$MYSQL_CHARSET
-EOF
+printf '[client]\n' >"$CLIENT_CONFIG"
+write_client_option host "$MYSQL_HOST"
+write_client_option port "$MYSQL_PORT"
+write_client_option user "$MYSQL_USER"
+write_client_option password "$MYSQL_PASSWORD"
+write_client_option default-character-set "$MYSQL_CHARSET"
 chmod 600 "$CLIENT_CONFIG"
 
 if mysql --defaults-extra-file="$CLIENT_CONFIG" \

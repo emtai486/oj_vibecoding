@@ -5,6 +5,7 @@ INIT_TEST_TARGET := $(BUILD_DIR)/tests/initialization_test
 DB_SQL_TEST_TARGET := $(BUILD_DIR)/tests/database_sql_test
 BACKEND_FOUNDATION_TEST_TARGET := $(BUILD_DIR)/tests/backend_foundation_test
 USER_FEATURE_TEST_TARGET := $(BUILD_DIR)/tests/user_feature_test
+DEPLOYMENT_ACCEPTANCE_TEST_TARGET := $(BUILD_DIR)/tests/deployment_acceptance_test
 GTEST_BACKEND_FOUNDATION_TARGET := $(BUILD_DIR)/tests/backend_foundation_gtest
 GTEST_USER_FEATURE_TARGET := $(BUILD_DIR)/tests/user_feature_gtest
 
@@ -21,7 +22,7 @@ SRCS := $(shell find src -name '*.cpp')
 APP_LIB_SRCS := $(filter-out src/main.cpp,$(SRCS))
 OBJS := $(patsubst %.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 
-.PHONY: all clean check-db deploy-build deploy-init-db deploy-start deploy-verify deploy-verify-basic test test-gtest test-api-curl test-api-curl-basic test-api-python test-api-python-basic
+.PHONY: all clean check-db deploy-build deploy-init-db deploy-start deploy-verify deploy-verify-basic deploy-verify-strict test test-gtest test-api-curl test-api-curl-basic test-api-python test-api-python-basic
 
 all: $(TARGET)
 
@@ -51,11 +52,15 @@ deploy-verify:
 deploy-verify-basic:
 	bash scripts/deploy_verify.sh --basic config/app.example.conf
 
-test: $(INIT_TEST_TARGET) $(DB_SQL_TEST_TARGET) $(BACKEND_FOUNDATION_TEST_TARGET) $(USER_FEATURE_TEST_TARGET)
+deploy-verify-strict:
+	bash scripts/deploy_verify.sh --strict-os config/app.conf
+
+test: $(INIT_TEST_TARGET) $(DB_SQL_TEST_TARGET) $(BACKEND_FOUNDATION_TEST_TARGET) $(USER_FEATURE_TEST_TARGET) $(DEPLOYMENT_ACCEPTANCE_TEST_TARGET)
 	./$(INIT_TEST_TARGET) .
 	./$(DB_SQL_TEST_TARGET) .
 	./$(BACKEND_FOUNDATION_TEST_TARGET) .
 	./$(USER_FEATURE_TEST_TARGET) .
+	./$(DEPLOYMENT_ACCEPTANCE_TEST_TARGET) .
 
 test-gtest: $(GTEST_BACKEND_FOUNDATION_TARGET) $(GTEST_USER_FEATURE_TARGET)
 	./$(GTEST_BACKEND_FOUNDATION_TARGET) .
@@ -76,6 +81,10 @@ $(BACKEND_FOUNDATION_TEST_TARGET): tests/cpp/backend_foundation_test.cpp $(APP_L
 $(USER_FEATURE_TEST_TARGET): tests/cpp/user_feature_test.cpp src/auth/password.cpp src/auth/session.cpp src/judge/comparator.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -o $@ $(LDLIBS)
+
+$(DEPLOYMENT_ACCEPTANCE_TEST_TARGET): tests/cpp/deployment_acceptance_test.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $^ -o $@
 
 test-api-curl: $(TARGET)
 	bash scripts/api_curl_test.sh config/app.conf
