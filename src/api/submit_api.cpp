@@ -7,6 +7,7 @@
 #include "util/json_response.h"
 
 #include <cstdint>
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <vector>
@@ -82,8 +83,18 @@ bool has_submit_session(const httplib::Request& request,
          current_admin(request, sessions).has_value();
 }
 
-oj::util::json::Value submit_result_json(const std::string& result) {
-  return oj::util::json::Value::Object{{"result", result}};
+oj::util::json::Value submit_result_json(
+    judge::JudgeResult result,
+    std::optional<std::size_t> testcase_index = std::nullopt) {
+  oj::util::json::Value::Object data{
+      {"result", judge::judge_result_passed(result) ? "passed" : "failed"},
+      {"status", judge::judge_result_code(result)},
+      {"status_text", judge::judge_result_text(result)},
+  };
+  if (testcase_index.has_value() && *testcase_index > 0) {
+    data["testcase"] = static_cast<std::int64_t>(*testcase_index);
+  }
+  return data;
 }
 
 }  // namespace
@@ -111,8 +122,9 @@ void register_submit_routes(httplib::Server& server,
                 if (!problem_id.has_value() || !code.has_value() ||
                     code->empty()) {
                   oj::util::send_success(response,
-                                         submit_result_json("failed"),
-                                         "failed");
+                                         submit_result_json(
+                                             judge::JudgeResult::CompileError),
+                                         "compile_error");
                   return;
                 }
 
@@ -134,8 +146,9 @@ void register_submit_routes(httplib::Server& server,
                 }
                 if (!problem.has_value()) {
                   oj::util::send_success(response,
-                                         submit_result_json("failed"),
-                                         "failed");
+                                         submit_result_json(
+                                             judge::JudgeResult::SystemError),
+                                         "system_error");
                   return;
                 }
 
@@ -152,17 +165,20 @@ void register_submit_routes(httplib::Server& server,
                 }
 
                 judge::JudgeService judge_service;
-                const auto result =
+                const auto report =
                     judge_service.judge(*problem, hidden_testcases, *code);
-                if (result == judge::JudgeResult::Passed) {
+                const auto status = judge::judge_result_code(report.result);
+                if (judge::judge_result_passed(report.result)) {
                   oj::util::send_success(response,
-                                         submit_result_json("passed"),
+                                         submit_result_json(report.result),
                                          "accepted");
                   return;
                 }
 
-                oj::util::send_success(response, submit_result_json("failed"),
-                                       "failed");
+                oj::util::send_success(
+                    response,
+                    submit_result_json(report.result, report.testcase_index),
+                    status);
               });
 }
 

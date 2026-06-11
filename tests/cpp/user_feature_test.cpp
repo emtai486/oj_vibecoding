@@ -195,6 +195,16 @@ void test_user_feature_sources(const fs::path& root) {
                   "judge service should compile with g++");
   expect_contains(judge_service, "compile_code(temp.path())",
                   "judge service should capture compile success or failure");
+  expect_contains(judge_service, "WrongAnswer",
+                  "judge service should distinguish wrong answers");
+  expect_contains(judge_service, "CompileError",
+                  "judge service should distinguish compile errors");
+  expect_contains(judge_service, "TimeLimitExceeded",
+                  "judge service should distinguish time limit exceeded");
+  expect_contains(judge_service, "MemoryLimitExceeded",
+                  "judge service should distinguish memory limit exceeded");
+  expect_contains(judge_service, "OutputLimitExceeded",
+                  "judge service should distinguish output limit exceeded");
   expect_contains(judge_service, R"({"./main"})",
                   "judge service should execute the compiled program");
   expect_contains(judge_service, "stdin_path",
@@ -227,6 +237,8 @@ void test_user_feature_sources(const fs::path& root) {
                   "frontend should persist passed status value");
   expect_contains(problem_detail, "submitButton.disabled = true",
                   "detail page should disable submit when anonymous");
+  expect_contains(problem_detail, "status_text",
+                  "detail page should show detailed judge status text");
   expect_contains(problem_detail, "markSolved",
                   "detail page should mark solved problems after pass");
   expect_contains(problem_list, "currentUser",
@@ -269,6 +281,8 @@ void test_spec_progress(const fs::path& root) {
                   "SPEC 12.6 concurrency item should be complete");
   expect_contains(spec, "- [x] 清理临时文件",
                   "SPEC 12.6 cleanup item should be complete");
+  expect_contains(spec, "status_text",
+                  "SPEC should document detailed submit status text");
 }
 
 }  // namespace

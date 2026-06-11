@@ -12,8 +12,8 @@
 
 #include <chrono>
 #include <condition_variable>
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -112,6 +112,10 @@ struct ProcessSpec {
 struct ProcessResult {
   bool exited_ok = false;
   bool timed_out = false;
+  bool output_limit_exceeded = false;
+  bool signaled = false;
+  int exit_code = -1;
+  int signal = 0;
 };
 
 bool write_text(const fs::path& path, const std::string& content) {
@@ -221,7 +225,14 @@ ProcessResult run_process(const ProcessSpec& spec) {
   while (true) {
     const pid_t waited = ::waitpid(pid, &status, WNOHANG);
     if (waited == pid) {
-      result.exited_ok = WIFEXITED(status) && WEXITSTATUS(status) == 0;
+      if (WIFEXITED(status)) {
+        result.exit_code = WEXITSTATUS(status);
+        result.exited_ok = result.exit_code == 0;
+      } else if (WIFSIGNALED(status)) {
+        result.signaled = true;
+        result.signal = WTERMSIG(status);
+        result.output_limit_exceeded = result.signal == SIGXFSZ;
+      }
       return result;
     }
     if (waited < 0) {
@@ -238,7 +249,7 @@ ProcessResult run_process(const ProcessSpec& spec) {
   }
 }
 
-bool compile_code(const fs::path& dir) {
+ProcessResult compile_code(const fs::path& dir) {
   const ProcessSpec spec{
       {"g++", "main.cpp", "-std=c++17", "-O2", "-pipe", "-o", "main"},
       dir,
@@ -249,18 +260,29 @@ bool compile_code(const fs::path& dir) {
       kCompileMemoryKb,
       true,
   };
-  const auto result = run_process(spec);
-  return result.exited_ok;
+  return run_process(spec);
 }
 
-bool run_testcase(const fs::path& dir, const model::Problem& problem,
-                  const model::Testcase& testcase, std::size_t index) {
+bool looks_like_memory_limit(const ProcessResult& result,
+                             const fs::path& error_path) {
+  if (result.signal == SIGKILL) {
+    return true;
+  }
+
+  const std::string error = read_text(error_path, 4096);
+  return error.find("std::bad_alloc") != std::string::npos ||
+         error.find("Cannot allocate memory") != std::string::npos ||
+         error.find("cannot allocate memory") != std::string::npos;
+}
+
+JudgeResult run_testcase(const fs::path& dir, const model::Problem& problem,
+                         const model::Testcase& testcase, std::size_t index) {
   const fs::path input_path = dir / ("input-" + std::to_string(index) + ".txt");
   const fs::path output_path =
       dir / ("output-" + std::to_string(index) + ".txt");
   const fs::path error_path = dir / ("error-" + std::to_string(index) + ".txt");
   if (!write_text(input_path, testcase.input)) {
-    return false;
+    return JudgeResult::SystemError;
   }
 
   const ProcessSpec spec{
@@ -275,42 +297,107 @@ bool run_testcase(const fs::path& dir, const model::Problem& problem,
   };
 
   const auto result = run_process(spec);
-  if (!result.exited_ok || result.timed_out ||
+  if (result.timed_out) {
+    return JudgeResult::TimeLimitExceeded;
+  }
+  if (result.output_limit_exceeded ||
       !file_within_limit(output_path, kMaxOutputBytes)) {
-    return false;
+    return JudgeResult::OutputLimitExceeded;
+  }
+  if (looks_like_memory_limit(result, error_path)) {
+    return JudgeResult::MemoryLimitExceeded;
+  }
+  if (!result.exited_ok) {
+    return JudgeResult::RuntimeError;
   }
 
   const std::string output = read_text(output_path, kMaxOutputBytes);
-  return compare_output(output, testcase.expected_output, problem.compare_mode);
+  if (!compare_output(output, testcase.expected_output, problem.compare_mode)) {
+    return JudgeResult::WrongAnswer;
+  }
+  return JudgeResult::Passed;
 }
 
 }  // namespace
 
-JudgeResult JudgeService::judge(
+std::string judge_result_code(JudgeResult result) {
+  switch (result) {
+    case JudgeResult::Passed:
+      return "accepted";
+    case JudgeResult::WrongAnswer:
+      return "wrong_answer";
+    case JudgeResult::CompileError:
+      return "compile_error";
+    case JudgeResult::TimeLimitExceeded:
+      return "time_limit_exceeded";
+    case JudgeResult::MemoryLimitExceeded:
+      return "memory_limit_exceeded";
+    case JudgeResult::OutputLimitExceeded:
+      return "output_limit_exceeded";
+    case JudgeResult::RuntimeError:
+      return "runtime_error";
+    case JudgeResult::SystemError:
+      return "system_error";
+  }
+  return "system_error";
+}
+
+std::string judge_result_text(JudgeResult result) {
+  switch (result) {
+    case JudgeResult::Passed:
+      return "Accepted";
+    case JudgeResult::WrongAnswer:
+      return "Wrong Answer";
+    case JudgeResult::CompileError:
+      return "Compile Error";
+    case JudgeResult::TimeLimitExceeded:
+      return "Time Limit Exceeded";
+    case JudgeResult::MemoryLimitExceeded:
+      return "Memory Limit Exceeded";
+    case JudgeResult::OutputLimitExceeded:
+      return "Output Limit Exceeded";
+    case JudgeResult::RuntimeError:
+      return "Runtime Error";
+    case JudgeResult::SystemError:
+      return "System Error";
+  }
+  return "System Error";
+}
+
+bool judge_result_passed(JudgeResult result) {
+  return result == JudgeResult::Passed;
+}
+
+JudgeReport JudgeService::judge(
     const model::Problem& problem,
     const std::vector<model::Testcase>& hidden_testcases,
     const std::string& code) {
-  if (code.empty() || hidden_testcases.empty()) {
-    return JudgeResult::Failed;
+  if (code.empty()) {
+    return {JudgeResult::CompileError, 0};
+  }
+  if (hidden_testcases.empty()) {
+    return {JudgeResult::SystemError, 0};
   }
 
   JudgeSlot slot;
   TempDirectory temp;
   if (!write_text(temp.path() / "main.cpp", code)) {
-    return JudgeResult::Failed;
+    return {JudgeResult::SystemError, 0};
   }
 
-  if (!compile_code(temp.path())) {
-    return JudgeResult::Failed;
+  const auto compile_result = compile_code(temp.path());
+  if (!compile_result.exited_ok) {
+    return {JudgeResult::CompileError, 0};
   }
 
   for (std::size_t i = 0; i < hidden_testcases.size(); ++i) {
-    if (!run_testcase(temp.path(), problem, hidden_testcases[i], i)) {
-      return JudgeResult::Failed;
+    const auto result = run_testcase(temp.path(), problem, hidden_testcases[i], i);
+    if (!judge_result_passed(result)) {
+      return {result, i + 1};
     }
   }
 
-  return JudgeResult::Passed;
+  return {JudgeResult::Passed, hidden_testcases.size()};
 }
 
 }  // namespace oj::judge

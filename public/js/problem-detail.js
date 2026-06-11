@@ -23,6 +23,10 @@ function setSubmitResult(kind, text) {
   resultView.textContent = text;
 }
 
+function submitStatusText(result) {
+  return result?.data?.status_text || result?.message || "提交失败";
+}
+
 function renderProblem(problem) {
   document.querySelector("#problem-title").textContent = problem.title;
   document.querySelector("#problem-meta").innerHTML = `
@@ -96,11 +100,11 @@ document.querySelector("#submit-code").addEventListener("click", async () => {
 
     if (result.success && result.data?.result === "passed") {
       solvedStorage.markSolved(problemId);
-      setSubmitResult("accepted", "accepted");
+      setSubmitResult("accepted", submitStatusText(result));
     } else if (!result.success && result.message === "unauthorized") {
       setSubmitResult("failed", "请先登录");
     } else {
-      setSubmitResult("failed", result.message || "failed");
+      setSubmitResult("failed", submitStatusText(result));
     }
   } catch {
     setSubmitResult("failed", "提交失败");

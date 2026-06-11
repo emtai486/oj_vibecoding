@@ -293,23 +293,28 @@ ACCEPTED_BODY='{"problem_id":1,"code":"#include <bits/stdc++.h>\nusing namespace
 curl_request POST /api/submit "$ACCEPTED_BODY" -b "$COOKIE_JAR"
 assert_response "POST /api/submit accepted code" 200 true accepted
 assert_body_contains "POST /api/submit accepted code" '"result":"passed"'
+assert_body_contains "POST /api/submit accepted code status" '"status":"accepted"'
 
 WRONG_BODY='{"problem_id":1,"code":"#include <bits/stdc++.h>\nusing namespace std;\nint main(){cout<<0<<endl;return 0;}\n"}'
 curl_request POST /api/submit "$WRONG_BODY" -b "$COOKIE_JAR"
-assert_response "POST /api/submit wrong answer" 200 true failed
+assert_response "POST /api/submit wrong answer" 200 true wrong_answer
 assert_body_contains "POST /api/submit wrong answer" '"result":"failed"'
+assert_body_contains "POST /api/submit wrong answer status" '"status":"wrong_answer"'
 
 curl_request POST /api/submit '{"problem_id":1,"code":"int main( {"}' -b "$COOKIE_JAR"
-assert_response "POST /api/submit compile error" 200 true failed
+assert_response "POST /api/submit compile error" 200 true compile_error
 assert_body_contains "POST /api/submit compile error" '"result":"failed"'
+assert_body_contains "POST /api/submit compile error status" '"status":"compile_error"'
 
 curl_request POST /api/submit '{"problem_id":1,"code":""}' -b "$COOKIE_JAR"
-assert_response "POST /api/submit empty code" 200 true failed
+assert_response "POST /api/submit empty code" 200 true compile_error
 assert_body_contains "POST /api/submit empty code" '"result":"failed"'
+assert_body_contains "POST /api/submit empty code status" '"status":"compile_error"'
 
 curl_request POST /api/submit '{"problem_id":999999999,"code":"int main(){return 0;}"}' -b "$COOKIE_JAR"
-assert_response "POST /api/submit missing problem" 200 true failed
+assert_response "POST /api/submit missing problem" 200 true system_error
 assert_body_contains "POST /api/submit missing problem" '"result":"failed"'
+assert_body_contains "POST /api/submit missing problem status" '"status":"system_error"'
 
 curl_request POST /api/user/logout '{}' -b "$COOKIE_JAR" -c "$COOKIE_JAR"
 assert_response "POST /api/user/logout logged in" 200 true "logged out"

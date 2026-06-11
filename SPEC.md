@@ -197,20 +197,24 @@ int main() {
    - 与期望输出比较
 7. 返回整体判题结果
 
-第一版只返回：
+提交接口返回两层结果：
 
-- 通过
-- 失败
+- `result`: 总体是否通过，取值为 `passed` 或 `failed`
+- `status`: 具体判题状态，参考 LeetCode 风格区分错误类型
+- `status_text`: 页面直接展示的英文状态文本
 
-以下情况统一返回失败：
+具体状态包括：
 
-- 编译错误
-- 运行错误
-- 超时
-- 内存超限
-- 输出不匹配
-- 程序崩溃
-- 空代码提交
+| status | status_text | 说明 |
+| --- | --- | --- |
+| `accepted` | `Accepted` | 所有隐藏测试用例通过 |
+| `wrong_answer` | `Wrong Answer` | 输出与期望输出不匹配 |
+| `compile_error` | `Compile Error` | 编译失败或空代码 |
+| `time_limit_exceeded` | `Time Limit Exceeded` | 运行超过题目时间限制 |
+| `memory_limit_exceeded` | `Memory Limit Exceeded` | 运行超过题目内存限制 |
+| `output_limit_exceeded` | `Output Limit Exceeded` | 输出超过系统大小限制 |
+| `runtime_error` | `Runtime Error` | 程序异常退出或崩溃 |
+| `system_error` | `System Error` | 题目不存在、隐藏用例缺失或判题系统异常 |
 
 ### 3.5 输出比较规则
 
@@ -817,7 +821,9 @@ testcases
   "success": true,
   "message": "accepted",
   "data": {
-    "result": "passed"
+    "result": "passed",
+    "status": "accepted",
+    "status_text": "Accepted"
   }
 }
 ```
@@ -827,12 +833,17 @@ testcases
 ```json
 {
   "success": true,
-  "message": "failed",
+  "message": "wrong_answer",
   "data": {
-    "result": "failed"
+    "result": "failed",
+    "status": "wrong_answer",
+    "status_text": "Wrong Answer",
+    "testcase": 1
   }
 }
 ```
+
+提交失败时 HTTP 状态仍为 200，`success=true` 表示接口调用成功；失败原因通过 `message`、`data.status` 和 `data.status_text` 表达。
 
 ### 8.4 管理员 API
 
@@ -909,7 +920,7 @@ testcases
 | - samples              |                         |
 +------------------------+-------------------------+
 | Result Panel                                     |
-| [Submit]   Result: passed / failed              |
+| [Submit]   Result: Accepted / Wrong Answer / TLE |
 +--------------------------------------------------+
 ```
 
@@ -952,7 +963,7 @@ run g++ main.cpp -std=c++17 -O2 -o main
 compile success?
     |
 yes -> run testcases
-no  -> failed
+no  -> compile_error
 ```
 
 ### 10.2 运行流程
@@ -966,24 +977,29 @@ for each hidden testcase:
     enforce memory limit
     enforce output size limit
     compare stdout with expected output
-    if mismatch -> failed
+    if timeout -> time_limit_exceeded
+    if memory exceeded -> memory_limit_exceeded
+    if output too large -> output_limit_exceeded
+    if runtime crash -> runtime_error
+    if mismatch -> wrong_answer
 
 all passed -> passed
 ```
 
 ### 10.3 异常处理
 
-统一返回失败：
+判题返回具体状态：
 
-- 编译失败
-- 执行超时
-- 内存超限
-- 输出过大
-- 程序异常退出
-- 输出错误
-- 测试用例不存在
-- 题目不存在
-- 空代码
+| 场景 | status |
+| --- | --- |
+| 编译失败或空代码 | `compile_error` |
+| 执行超时 | `time_limit_exceeded` |
+| 内存超限 | `memory_limit_exceeded` |
+| 输出过大 | `output_limit_exceeded` |
+| 程序异常退出 | `runtime_error` |
+| 输出错误 | `wrong_answer` |
+| 测试用例不存在 | `system_error` |
+| 题目不存在 | `system_error` |
 
 ---
 
@@ -1180,10 +1196,10 @@ code
 - [ ] 普通用户可以登录
 - [ ] 登录普通用户可以编辑 C++ 代码
 - [ ] 登录普通用户可以提交代码
-- [ ] 正确代码返回通过
-- [ ] 错误代码返回失败
-- [ ] 编译错误返回失败
-- [ ] 超时代码返回失败
+- [ ] 正确代码返回 `accepted`
+- [ ] 错误代码返回 `wrong_answer`
+- [ ] 编译错误返回 `compile_error`
+- [ ] 超时代码返回 `time_limit_exceeded`
 - [ ] 登录普通用户通过后的题目状态保存到 localStorage
 
 ### 13.3 管理员验收
@@ -1205,8 +1221,8 @@ code
 - [ ] 系统可以捕获 stdout
 - [ ] strict 模式可以严格比较输出
 - [ ] float_1 模式可以按小数点后一位比较
-- [ ] 超过 1 秒默认时间限制时返回失败
-- [ ] 超过 128 MB 默认内存限制时返回失败
+- [ ] 超过 1 秒默认时间限制时返回 `time_limit_exceeded`
+- [ ] 超过 128 MB 默认内存限制时返回 `memory_limit_exceeded`
 - [ ] 多人同时提交时最多运行 2-4 个判题进程
 
 ### 13.5 安全验收

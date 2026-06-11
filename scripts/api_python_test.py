@@ -166,6 +166,7 @@ def assert_submit_result(
     code: str,
     expected_message: str,
     expected_result: str,
+    expected_status: str | None = None,
     timeout: float = 10.0,
 ) -> None:
     result = request_json(
@@ -178,6 +179,8 @@ def assert_submit_result(
     )
     assert_response(label, result, 200, True, expected_message)
     assert_body_contains(label, result, f'"result":"{expected_result}"')
+    if expected_status is not None:
+        assert_body_contains(label, result, f'"status":"{expected_status}"')
 
 
 def start_server(config_path: Path, tmp_dir: Path) -> tuple[str, subprocess.Popen[bytes]]:
@@ -371,6 +374,7 @@ def run_full_checks(base_url: str) -> None:
         accepted_code,
         "accepted",
         "passed",
+        "accepted",
     )
 
     wrong_code = (
@@ -384,8 +388,9 @@ def run_full_checks(base_url: str) -> None:
         "POST /api/submit wrong answer",
         1,
         wrong_code,
+        "wrong_answer",
         "failed",
-        "failed",
+        "wrong_answer",
     )
 
     assert_submit_result(
@@ -394,8 +399,9 @@ def run_full_checks(base_url: str) -> None:
         "POST /api/submit compile error",
         1,
         "int main( {",
+        "compile_error",
         "failed",
-        "failed",
+        "compile_error",
     )
 
     assert_submit_result(
@@ -404,8 +410,9 @@ def run_full_checks(base_url: str) -> None:
         "POST /api/submit empty code",
         1,
         "",
+        "compile_error",
         "failed",
-        "failed",
+        "compile_error",
     )
 
     assert_submit_result(
@@ -414,8 +421,9 @@ def run_full_checks(base_url: str) -> None:
         "POST /api/submit missing problem",
         999999999,
         "int main(){return 0;}",
+        "system_error",
         "failed",
-        "failed",
+        "system_error",
     )
 
     strict_missing_newline_code = (
@@ -429,8 +437,9 @@ def run_full_checks(base_url: str) -> None:
         "POST /api/submit strict newline mismatch",
         1,
         strict_missing_newline_code,
+        "wrong_answer",
         "failed",
-        "failed",
+        "wrong_answer",
     )
 
     float_one_accepted_code = (
@@ -448,6 +457,7 @@ def run_full_checks(base_url: str) -> None:
         float_one_accepted_code,
         "accepted",
         "passed",
+        "accepted",
     )
 
     float_one_rejected_code = (
@@ -463,8 +473,9 @@ def run_full_checks(base_url: str) -> None:
         "POST /api/submit float_1 mismatch",
         2,
         float_one_rejected_code,
+        "wrong_answer",
         "failed",
-        "failed",
+        "wrong_answer",
     )
 
     timeout_code = (
@@ -477,8 +488,9 @@ def run_full_checks(base_url: str) -> None:
         "POST /api/submit timeout",
         1,
         timeout_code,
+        "time_limit_exceeded",
         "failed",
-        "failed",
+        "time_limit_exceeded",
         timeout=15.0,
     )
 
@@ -494,8 +506,9 @@ def run_full_checks(base_url: str) -> None:
         "POST /api/submit memory limit",
         1,
         memory_limit_code,
+        "memory_limit_exceeded",
         "failed",
-        "failed",
+        "memory_limit_exceeded",
         timeout=15.0,
     )
 
@@ -510,8 +523,9 @@ def run_full_checks(base_url: str) -> None:
         "POST /api/submit output limit",
         1,
         output_limit_code,
+        "output_limit_exceeded",
         "failed",
-        "failed",
+        "output_limit_exceeded",
         timeout=15.0,
     )
 
@@ -630,8 +644,9 @@ def run_full_checks(base_url: str) -> None:
         "POST /api/submit hidden testcase mismatch",
         created_problem_id,
         sample_only_code,
+        "wrong_answer",
         "failed",
-        "failed",
+        "wrong_answer",
     )
 
     result = request_json(

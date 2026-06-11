@@ -405,7 +405,9 @@ POST /api/submit
   "success": true,
   "message": "accepted",
   "data": {
-    "result": "passed"
+    "result": "passed",
+    "status": "accepted",
+    "status_text": "Accepted"
   }
 }
 ```
@@ -415,24 +417,28 @@ POST /api/submit
 ```json
 {
   "success": true,
-  "message": "failed",
+  "message": "wrong_answer",
   "data": {
-    "result": "failed"
+    "result": "failed",
+    "status": "wrong_answer",
+    "status_text": "Wrong Answer",
+    "testcase": 1
   }
 }
 ```
 
-当前第一版会将以下情况统一返回为失败：
+`result` 表示总体通过或失败；`status` 和 `status_text` 表示具体判题状态。提交失败时 HTTP 状态仍为 200，`success=true` 表示接口调用成功。
 
-- 空代码。
-- 题目不存在。
-- 隐藏测试用例不存在。
-- 编译错误。
-- 运行错误。
-- 超时。
-- 内存超限。
-- 输出超限。
-- 输出不匹配。
+| 场景 | message/status | status_text |
+| --- | --- | --- |
+| 全部通过 | `accepted` | `Accepted` |
+| 输出错误 | `wrong_answer` | `Wrong Answer` |
+| 编译失败或空代码 | `compile_error` | `Compile Error` |
+| 运行超时 | `time_limit_exceeded` | `Time Limit Exceeded` |
+| 内存超限 | `memory_limit_exceeded` | `Memory Limit Exceeded` |
+| 输出超限 | `output_limit_exceeded` | `Output Limit Exceeded` |
+| 程序异常退出 | `runtime_error` | `Runtime Error` |
+| 题目不存在、隐藏用例缺失或系统异常 | `system_error` | `System Error` |
 
 未登录响应：
 
@@ -827,11 +833,11 @@ OJ_API_BASE_URL=http://127.0.0.1:8080 python3 scripts/api_python_test.py --no-st
 - `POST /api/user/login`
 - `POST /api/user/logout`
 - 未登录 `POST /api/submit` 返回 `401 unauthorized`
-- 登录后正确代码提交返回 `passed`
-- 登录后错误代码提交返回 `failed`
-- 登录后编译错误代码提交返回 `failed`
-- 登录后空代码提交返回 `failed`
-- 登录后题目不存在提交返回 `failed`
+- 登录后正确代码提交返回 `status=accepted`
+- 登录后错误代码提交返回 `status=wrong_answer`
+- 登录后编译错误代码提交返回 `status=compile_error`
+- 登录后空代码提交返回 `status=compile_error`
+- 登录后题目不存在提交返回 `status=system_error`
 
 第二批覆盖管理员题目管理链路：
 
@@ -851,15 +857,15 @@ OJ_API_BASE_URL=http://127.0.0.1:8080 python3 scripts/api_python_test.py --no-st
 
 第三批覆盖 `SPEC.md` 12.6 判题接口回归，当前由 Python 自动化脚本执行：
 
-- `strict` 模式下完全匹配输出返回 `passed`。
-- `strict` 模式下缺少末尾换行返回 `failed`。
-- `float_1` 模式下小数按一位比较，相同一位结果返回 `passed`。
-- `float_1` 模式下一位小数不匹配返回 `failed`。
-- 空代码返回 `failed`。
-- 题目不存在返回 `failed`。
+- `strict` 模式下完全匹配输出返回 `status=accepted`。
+- `strict` 模式下缺少末尾换行返回 `status=wrong_answer`。
+- `float_1` 模式下小数按一位比较，相同一位结果返回 `status=accepted`。
+- `float_1` 模式下一位小数不匹配返回 `status=wrong_answer`。
+- 空代码返回 `status=compile_error`。
+- 题目不存在返回 `status=system_error`。
 - 管理员新增题目时隐藏测试用例为空返回 `400 invalid problem`。
-- 样例可过但隐藏测试用例不匹配时提交返回 `failed`。
-- 编译错误返回 `failed`。
-- 运行超时返回 `failed`。
-- 内存超限返回 `failed`。
-- 输出超限返回 `failed`。
+- 样例可过但隐藏测试用例不匹配时提交返回 `status=wrong_answer`。
+- 编译错误返回 `status=compile_error`。
+- 运行超时返回 `status=time_limit_exceeded`。
+- 内存超限返回 `status=memory_limit_exceeded`。
+- 输出超限返回 `status=output_limit_exceeded`。

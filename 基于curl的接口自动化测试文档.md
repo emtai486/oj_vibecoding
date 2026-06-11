@@ -168,11 +168,11 @@ OJ_API_BASE_URL=http://127.0.0.1:8080 python3 scripts/api_python_test.py --full 
 - 普通用户正确登录并写入 `oj_user_session` Cookie。
 - 登录后 `GET /api/user/me` 返回 `logged_in=true`。
 - 未登录 `POST /api/submit` 返回 `401 unauthorized`。
-- 登录后提交正确代码返回 `passed`。
-- 登录后提交错误答案代码返回 `failed`。
-- 登录后提交编译错误代码返回 `failed`。
-- 登录后提交空代码返回 `failed`。
-- 登录后提交不存在题目返回 `failed`。
+- 登录后提交正确代码返回 `status=accepted`。
+- 登录后提交错误答案代码返回 `status=wrong_answer`。
+- 登录后提交编译错误代码返回 `status=compile_error`。
+- 登录后提交空代码返回 `status=compile_error`。
+- 登录后提交不存在题目返回 `status=system_error`。
 - `POST /api/user/logout` 退出后 `GET /api/user/me` 返回 `logged_in=false`。
 
 ## 5. 第二批：管理员链路覆盖
@@ -207,21 +207,21 @@ OJ_API_BASE_URL=http://127.0.0.1:8080 python3 scripts/api_python_test.py --full 
 覆盖项：
 
 - 未登录 `POST /api/submit` 返回 `401 unauthorized`，不进入判题。
-- 登录后提交 A+B 正确代码，`strict` 完全匹配输出，返回 `passed`。
-- 登录后提交 A+B 错误答案，返回 `failed`。
-- 登录后提交编译错误代码，返回 `failed`。
-- 登录后提交空代码，返回 `failed`。
-- 登录后提交不存在题目，返回 `failed`。
-- `strict` 模式下缺少末尾换行，返回 `failed`。
-- `float_1` 模式下输出按一位小数比较，通过用例返回 `passed`。
-- `float_1` 模式下一位小数不匹配，返回 `failed`。
-- 运行超过题目时间限制时返回 `failed`。
-- 申请超过题目内存限制时返回 `failed`。
-- 输出超过大小限制时返回 `failed`。
+- 登录后提交 A+B 正确代码，`strict` 完全匹配输出，返回 `status=accepted`。
+- 登录后提交 A+B 错误答案，返回 `status=wrong_answer`。
+- 登录后提交编译错误代码，返回 `status=compile_error`。
+- 登录后提交空代码，返回 `status=compile_error`。
+- 登录后提交不存在题目，返回 `status=system_error`。
+- `strict` 模式下缺少末尾换行，返回 `status=wrong_answer`。
+- `float_1` 模式下输出按一位小数比较，通过用例返回 `status=accepted`。
+- `float_1` 模式下一位小数不匹配，返回 `status=wrong_answer`。
+- 运行超过题目时间限制时返回 `status=time_limit_exceeded`。
+- 申请超过题目内存限制时返回 `status=memory_limit_exceeded`。
+- 输出超过大小限制时返回 `status=output_limit_exceeded`。
 - 管理员创建题目时隐藏测试用例为空，返回 `400 invalid problem`。
-- 样例输出正确但隐藏测试用例不匹配时，提交返回 `failed`。
+- 样例输出正确但隐藏测试用例不匹配时，提交返回 `status=wrong_answer`。
 
-这些用例共同覆盖 `SPEC.md` 12.6 中的编译、运行、stdin/stdout、严格比较、小数比较、时间限制、内存限制、输出限制、隐藏用例和失败收敛逻辑。
+这些用例共同覆盖 `SPEC.md` 12.6 中的编译、运行、stdin/stdout、严格比较、小数比较、时间限制、内存限制、输出限制、隐藏用例和具体失败状态返回逻辑。
 
 ## 7. 测试数据说明
 

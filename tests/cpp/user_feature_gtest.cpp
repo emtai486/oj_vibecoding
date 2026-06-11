@@ -58,6 +58,12 @@ std::vector<oj::model::Testcase> one_hidden_test() {
   };
 }
 
+oj::judge::JudgeResult judge_result(
+    oj::judge::JudgeService& judge_service, const oj::model::Problem& problem,
+    const std::vector<oj::model::Testcase>& testcases, const std::string& code) {
+  return judge_service.judge(problem, testcases, code).result;
+}
+
 std::set<std::string> judge_temp_children() {
   const fs::path base = fs::absolute("var/judge_tmp");
   std::set<std::string> entries;
@@ -197,10 +203,10 @@ TEST(JudgeServiceTest, RejectsMissingCodeOrHiddenTestcasesWithoutExecution) {
   const auto tests = one_hidden_test();
   constexpr const char* kValidLookingCode = "int main(){return 0;}";
 
-  EXPECT_EQ(judge_service.judge(problem, {}, kValidLookingCode),
-            oj::judge::JudgeResult::Failed);
-  EXPECT_EQ(judge_service.judge(problem, tests, ""),
-            oj::judge::JudgeResult::Failed);
+  EXPECT_EQ(judge_result(judge_service, problem, {}, kValidLookingCode),
+            oj::judge::JudgeResult::SystemError);
+  EXPECT_EQ(judge_result(judge_service, problem, tests, ""),
+            oj::judge::JudgeResult::CompileError);
 
   const std::string judge_service_source =
       read_text(project_root / "src/judge/judge_service.cpp");
@@ -226,10 +232,10 @@ TEST(JudgeServiceTest, CompilesAndRunsHiddenTestcases) {
       "using namespace std;\n"
       "int main(){cout<<0<<endl;return 0;}\n";
 
-  EXPECT_EQ(judge_service.judge(problem, tests, kAcceptedCode),
+  EXPECT_EQ(judge_result(judge_service, problem, tests, kAcceptedCode),
             oj::judge::JudgeResult::Passed);
-  EXPECT_EQ(judge_service.judge(problem, tests, kWrongAnswerCode),
-            oj::judge::JudgeResult::Failed);
+  EXPECT_EQ(judge_result(judge_service, problem, tests, kWrongAnswerCode),
+            oj::judge::JudgeResult::WrongAnswer);
 }
 
 TEST(JudgeServiceTest, RejectsCompilationErrorsAndCleansTempDirectory) {
@@ -238,8 +244,9 @@ TEST(JudgeServiceTest, RejectsCompilationErrorsAndCleansTempDirectory) {
   const auto tests = one_hidden_test();
   const auto before = judge_temp_children();
 
-  EXPECT_EQ(judge_service.judge(problem, tests, "int main( { return 0; }"),
-            oj::judge::JudgeResult::Failed);
+  EXPECT_EQ(judge_result(judge_service, problem, tests,
+                         "int main( { return 0; }"),
+            oj::judge::JudgeResult::CompileError);
   EXPECT_EQ(judge_temp_children(), before);
 }
 
@@ -257,10 +264,10 @@ TEST(JudgeServiceTest, AppliesFloatOneModeDuringJudge) {
       "#include <iostream>\n"
       "int main(){std::cout << 2.36 << '\\n'; return 0;}\n";
 
-  EXPECT_EQ(judge_service.judge(problem, tests, kAcceptedCode),
+  EXPECT_EQ(judge_result(judge_service, problem, tests, kAcceptedCode),
             oj::judge::JudgeResult::Passed);
-  EXPECT_EQ(judge_service.judge(problem, tests, kRejectedCode),
-            oj::judge::JudgeResult::Failed);
+  EXPECT_EQ(judge_result(judge_service, problem, tests, kRejectedCode),
+            oj::judge::JudgeResult::WrongAnswer);
 }
 
 TEST(JudgeServiceTest, EnforcesRuntimeResourceLimits) {
@@ -272,8 +279,8 @@ TEST(JudgeServiceTest, EnforcesRuntimeResourceLimits) {
   constexpr const char* kTimeoutCode =
       "#include <cstdint>\n"
       "int main(){volatile std::uint64_t x = 0; while (true) { ++x; }}\n";
-  EXPECT_EQ(judge_service.judge(timeout_problem, tests, kTimeoutCode),
-            oj::judge::JudgeResult::Failed);
+  EXPECT_EQ(judge_result(judge_service, timeout_problem, tests, kTimeoutCode),
+            oj::judge::JudgeResult::TimeLimitExceeded);
 
   auto memory_problem = addition_problem();
   memory_problem.memory_limit_kb = 65536;
@@ -282,16 +289,16 @@ TEST(JudgeServiceTest, EnforcesRuntimeResourceLimits) {
       "#include <vector>\n"
       "int main(){std::vector<char> data(200 * 1024 * 1024);"
       "std::cout << data.size() << '\\n'; return 0;}\n";
-  EXPECT_EQ(judge_service.judge(memory_problem, tests, kMemoryLimitCode),
-            oj::judge::JudgeResult::Failed);
+  EXPECT_EQ(judge_result(judge_service, memory_problem, tests, kMemoryLimitCode),
+            oj::judge::JudgeResult::MemoryLimitExceeded);
 
   auto output_problem = addition_problem();
   constexpr const char* kOutputLimitCode =
       "#include <iostream>\n"
       "#include <string>\n"
       "int main(){std::cout << std::string(1100000, 'x'); return 0;}\n";
-  EXPECT_EQ(judge_service.judge(output_problem, tests, kOutputLimitCode),
-            oj::judge::JudgeResult::Failed);
+  EXPECT_EQ(judge_result(judge_service, output_problem, tests, kOutputLimitCode),
+            oj::judge::JudgeResult::OutputLimitExceeded);
 }
 
 TEST(FrontendUserFeatureTest, ImplementsProblemPagesAndSolvedStateContract) {
@@ -311,6 +318,7 @@ TEST(FrontendUserFeatureTest, ImplementsProblemPagesAndSolvedStateContract) {
   expect_contains(auth, "/api/user/register");
   expect_contains(problem_detail, "submitButton.disabled = true");
   expect_contains(problem_detail, R"(/api/submit)");
+  expect_contains(problem_detail, "status_text");
   expect_contains(problem_detail, "solvedStorage.markSolved(problemId)");
   expect_contains(problem_list, "solvedStorage.isSolved");
   expect_contains(storage, R"(key: "oj_problem_status")");
