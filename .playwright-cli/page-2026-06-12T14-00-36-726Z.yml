@@ -1,0 +1,22 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - link "CodeJudge" [ref=e3] [cursor=pointer]:
+      - /url: /
+  - main [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: User Session
+      - heading "用户登录" [level=1] [ref=e7]
+      - paragraph [ref=e8]: 普通用户登录后可进入题库并提交 C++ 代码；管理员请使用管理员入口。
+      - generic [ref=e9]:
+        - text: 用户名
+        - textbox "用户名" [ref=e10]
+      - generic [ref=e11]:
+        - text: 密码
+        - textbox "密码" [ref=e12]
+      - button "进入题库" [ref=e13] [cursor=pointer]
+      - paragraph [ref=e14]
+      - generic [ref=e15]:
+        - link "创建普通用户" [ref=e16] [cursor=pointer]:
+          - /url: /register.html
+        - link "管理员登录" [ref=e17] [cursor=pointer]:
+          - /url: /admin/login.html

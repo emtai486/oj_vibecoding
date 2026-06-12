@@ -1,0 +1,99 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - link "CodeJudge" [ref=e3] [cursor=pointer]:
+      - /url: /
+    - navigation [ref=e4]:
+      - link "登录" [ref=e5] [cursor=pointer]:
+        - /url: /login.html
+      - link "注册" [ref=e6] [cursor=pointer]:
+        - /url: /register.html
+      - link "管理后台" [ref=e7] [cursor=pointer]:
+        - /url: /admin/login.html
+  - main [ref=e8]:
+    - region "CodeJudge 在线判题训练平台" [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - text: C++ Online Judge
+          - heading "CodeJudge 在线判题训练平台" [level=1] [ref=e12]
+          - paragraph [ref=e13]: 面向课程训练和小规模实战演练的 OJ 系统。登录后进入题库，使用本地化编辑器提交完整 C++ 程序，并记录个人通过状态。
+          - generic [ref=e14]:
+            - link "登录进入题库" [ref=e15] [cursor=pointer]:
+              - /url: /login.html
+            - link "创建账号" [ref=e16] [cursor=pointer]:
+              - /url: /register.html
+        - complementary "判题流程预览" [ref=e17]:
+          - generic [ref=e22]: "judge@codebox:~$ g++ main.cpp -O2 compile: ok runner: hidden_cases queued limit: 1000ms / 128MB compare: strict result: accepted"
+    - region "系统能力" [ref=e23]:
+      - generic [ref=e24]:
+        - strong [ref=e25]: C++17
+        - text: 完整程序提交与编译运行
+      - generic [ref=e26]:
+        - strong [ref=e27]: Strict
+        - text: 样例与隐藏用例判定
+      - generic [ref=e28]:
+        - strong [ref=e29]: Local
+        - text: 浏览器保留个人通过状态
+    - region "平台入口" [ref=e30]:
+      - article [ref=e31]:
+        - text: Problem Set
+        - heading "登录后查看题库" [level=2] [ref=e32]
+        - paragraph [ref=e33]: 题目列表、完成状态和提交入口统一放在登录后的训练工作台中，公开首页只保留平台介绍和账号入口。
+      - article [ref=e34]:
+        - text: Editor
+        - heading "浏览器内完成提交" [level=2] [ref=e35]
+        - paragraph [ref=e36]: 题目详情页集成 CodeMirror 编辑器，支持 C++17 代码提交和判题结果回显。
+      - article [ref=e37]:
+        - text: Admin
+        - heading "后台维护题目" [level=2] [ref=e38]
+        - paragraph [ref=e39]: 管理员可维护题目、难度、测试用例和资源限制，前台训练页面自动读取最新数据。
+    - region "从题库到判题结果" [ref=e40]:
+      - generic [ref=e41]:
+        - generic [ref=e42]:
+          - text: Training Flow
+          - heading "从题库到判题结果" [level=2] [ref=e43]
+        - link "开始训练" [ref=e44] [cursor=pointer]:
+          - /url: /login.html?next=%2Fproblems.html
+      - generic [ref=e45]:
+        - article [ref=e46]:
+          - generic [ref=e47]: "01"
+          - heading "进入题库" [level=3] [ref=e48]
+          - paragraph [ref=e49]: 登录后查看全部题目，按难度和完成状态快速定位下一道训练题。
+        - article [ref=e50]:
+          - generic [ref=e51]: "02"
+          - heading "阅读题面" [level=3] [ref=e52]
+          - paragraph [ref=e53]: 题目详情集中展示输入输出格式、样例、时间限制和内存限制。
+        - article [ref=e54]:
+          - generic [ref=e55]: "03"
+          - heading "提交代码" [level=3] [ref=e56]
+          - paragraph [ref=e57]: 在浏览器编辑 C++17 程序，提交后由后端编译运行隐藏测试用例。
+        - article [ref=e58]:
+          - generic [ref=e59]: "04"
+          - heading "记录状态" [level=3] [ref=e60]
+          - paragraph [ref=e61]: 通过后在当前浏览器标记为已完成，回到题库时可以继续规划训练进度。
+    - region "角色能力" [ref=e62]:
+      - article [ref=e63]:
+        - generic [ref=e64]: Student Mode
+        - heading "普通用户训练" [level=2] [ref=e65]
+        - paragraph [ref=e66]: 适合课程作业、算法入门和小规模练习场景。用户登录后只看到训练相关入口，界面保持专注。
+        - list [ref=e67]:
+          - listitem [ref=e68]: 题库浏览与题目详情
+          - listitem [ref=e69]: C++17 在线提交
+          - listitem [ref=e70]: 本地通过状态记录
+      - article [ref=e71]:
+        - generic [ref=e72]: Admin Mode
+        - heading "管理员也可提交" [level=2] [ref=e73]
+        - paragraph [ref=e74]: 管理员保留新增、删除题目的权限，同时可以直接进入题库练习并提交代码，便于验题和回归检查。
+        - list [ref=e75]:
+          - listitem [ref=e76]: 题目与测试用例维护
+          - listitem [ref=e77]: 后台列表一键进入练习
+          - listitem [ref=e78]: 共享同一套判题流程
+    - region "系统能力概览" [ref=e79]:
+      - generic [ref=e80]:
+        - text: Judge Runtime
+        - heading "面向教学场景的轻量级 OJ" [level=2] [ref=e81]
+        - paragraph [ref=e82]: 后端使用 C++ 服务提供静态页面和 JSON API，题目与测试用例持久化到 MySQL，提交时同步执行编译、运行和结果比较。
+      - generic "技术能力" [ref=e83]:
+        - generic [ref=e84]: cpp-httplib
+        - generic [ref=e85]: MySQL
+        - generic [ref=e86]: CodeMirror
+        - generic [ref=e87]: g++
