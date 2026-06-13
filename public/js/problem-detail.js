@@ -3,9 +3,6 @@ const problemId = params.get("id");
 const editor = createCppEditor(document.querySelector("#code-editor"));
 let loggedInUser = null;
 
-const submitButton = document.querySelector("#submit-code");
-submitButton.disabled = true;
-
 function escapeProblemHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -56,6 +53,7 @@ function renderProblem(problem) {
 }
 
 function configureSubmitState() {
+  const submitButton = document.querySelector("#submit-code");
   if (!loggedInUser) {
     submitButton.disabled = true;
     setSubmitResult("failed", "登录后提交");
@@ -81,8 +79,8 @@ async function loadProblem() {
     if (result.success) {
       renderProblem(result.data);
     } else {
-      document.querySelector("#problem-content").textContent = "题目不存在";
-    }
+    document.querySelector("#problem-content").textContent = "题目不存在";
+  }
   } catch {
     document.querySelector("#problem-content").textContent = "加载失败";
   }

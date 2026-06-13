@@ -11,13 +11,14 @@ function difficultyClass(value) {
   const difficulty = String(value || "").toLowerCase();
   return ["easy", "medium", "hard"].includes(difficulty) ? difficulty : "";
 }
-
 async function loadProblems() {
   const tbody = document.querySelector("#problem-list");
   const count = document.querySelector("#problem-count");
 
   try {
     const user = await currentUser();
+
+
     const result = await api.getProblems();
     const problems = result.success ? result.data : [];
     count.textContent = `${problems.length} 题`;
@@ -45,3 +46,4 @@ async function loadProblems() {
 }
 
 loadProblems();
+
