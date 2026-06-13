@@ -1,0 +1,35 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - link "CodeJudge" [ref=e3] [cursor=pointer]:
+      - /url: /
+    - navigation [ref=e4]:
+      - link "登录" [ref=e5] [cursor=pointer]:
+        - /url: /login.html
+      - link "注册" [ref=e6] [cursor=pointer]:
+        - /url: /register.html
+      - link "管理后台" [ref=e7] [cursor=pointer]:
+        - /url: /admin/login.html
+  - main [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - text: Problem Set
+        - heading "题目列表" [level=1] [ref=e11]
+        - paragraph [ref=e12]: 选择题目进入编辑器，提交 C++ 代码后会在当前浏览器记录通过状态。
+      - link "返回首页" [ref=e13] [cursor=pointer]:
+        - /url: /
+    - region "题目列表" [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e17]: Training Workspace
+          - heading "全部题目" [level=2] [ref=e18]
+        - generic [ref=e19]: 0 题
+      - table [ref=e21]:
+        - rowgroup [ref=e22]:
+          - row "ID 标题 难度 状态" [ref=e23]:
+            - columnheader "ID" [ref=e24]
+            - columnheader "标题" [ref=e25]
+            - columnheader "难度" [ref=e26]
+            - columnheader "状态" [ref=e27]
+        - rowgroup [ref=e28]:
+          - row "正在加载" [ref=e29]:
+            - cell "正在加载" [ref=e30]

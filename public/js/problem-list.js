@@ -18,17 +18,12 @@ async function loadProblems() {
 
   try {
     const user = await currentUser();
-    if (!user) {
-      window.location.href = "/login.html?next=%2Fproblems.html";
-      return;
-    }
-
     const result = await api.getProblems();
     const problems = result.success ? result.data : [];
     count.textContent = `${problems.length} 题`;
     tbody.innerHTML = problems
       .map((problem) => {
-        const status = solvedStorage.isSolved(problem.id)
+        const status = user && solvedStorage.isSolved(problem.id)
           ? '<span class="status-pill solved">已通过</span>'
           : '<span class="status-pill unsolved">未完成</span>';
         const difficulty = escapeHtml(problem.difficulty);

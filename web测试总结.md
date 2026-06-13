@@ -1,12 +1,215 @@
 # Web 自动化测试总结
 
+## 最新状态总览（2026-06-13）
+
+### 当前结论
+
+- Web 自动化用例总数：`38`
+- 当前已确认通过：`26`
+- 当前未完成或仍有问题：`12`
+- 第一轮历史结果是 `24` 通过、`14` 失败；本轮新增确认通过：
+  - `WEB-003`：未登录用户可访问题目列表。
+  - `WEB-022`：不存在题目详情页显示错误状态。
+
+### 当前已确认通过用例
+
+```text
+WEB-001, WEB-002, WEB-003, WEB-004, WEB-005, WEB-006,
+WEB-007, WEB-008, WEB-009, WEB-010,
+WEB-011, WEB-012, WEB-013, WEB-018,
+WEB-022, WEB-023, WEB-024, WEB-025, WEB-026, WEB-027,
+WEB-028, WEB-029, WEB-031,
+WEB-033, WEB-034, WEB-036
+```
+
+### 当前未完成或仍需回归用例
+
+```text
+WEB-014, WEB-015, WEB-016, WEB-017,
+WEB-019, WEB-020, WEB-021, WEB-030,
+WEB-032, WEB-035, WEB-037, WEB-038
+```
+
+说明：
+
+- `WEB-014` 到 `WEB-017`、`WEB-019` 到 `WEB-021`、`WEB-030` 的后端提交响应已经恢复具体 `status_text`，但页面级展示尚未稳定完成回归，因此仍列为未完成。
+- `WEB-032` 需要重新创建临时题目、删除后访问详情页，尚未完成完整回归。
+- `WEB-035`、`WEB-037`、`WEB-038` 依赖未登录题库策略修复后的完整页面流程，尚未完成完整回归。
+
+### 本轮已经修复并验证
+
+1. 未登录题库访问策略已修复并验证。
+
+   Ubuntu 运行服务已经加载新版 `public/js/problem-list.js`。通过浏览器 DOM 检查确认：未登录访问 `/problems.html` 不再跳转登录页，页面显示 2 道题：
+
+   ```text
+   A+B Problem
+   Average Score
+   ```
+
+   两题状态均为“未完成”。`WEB-003` 的核心预期已通过。
+
+2. 不存在题目详情页错误状态已修复并验证。
+
+   Ubuntu 运行服务已经加载新版 `public/js/problem-detail.js`。通过浏览器 DOM 检查确认：访问 `/problem.html?id=999999999` 时：
+
+   ```text
+   #problem-content = 题目不存在
+   #submit-result = 登录后提交
+   ```
+
+   直接请求 `/api/problems/999999999` 返回 HTTP `404`。`WEB-022` 已通过。
+
+3. 失败类判题接口响应已修复并验证。
+
+   使用 `user1/password` 登录后，接口返回已经包含具体状态字段。例如错误答案：
+
+   ```json
+   {"data":{"result":"failed","status":"wrong_answer","status_text":"Wrong Answer","testcase":1},"message":"wrong_answer","success":true}
+   ```
+
+   已确认的后端响应：
+
+   ```text
+   Wrong Answer
+   Compile Error
+   strict 换行不匹配 -> Wrong Answer
+   空代码 -> Compile Error
+   ```
+
+   注意：这只证明后端响应已恢复；页面级展示还需要在数据库 500 稳定后继续回归。
+
+### 本地已修复但 Ubuntu 仍需同步
+
+当前工作区已进一步修复 `public/js/problem-detail.js` 的提交按钮竞态：
+
+- 问题：页面初始 HTML 中 `#submit-code` 是可点击状态。如果用户或自动化脚本在 `currentUser()` 完成前点击，会误显示“请先登录”。
+- 修复：脚本启动时立即禁用按钮，等待登录态检查完成后再由 `configureSubmitState()` 启用。
+
+需要在 Ubuntu 的 `~/project/public/js/problem-detail.js` 同步以下改动。
+
+在文件顶部：
+
+```js
+const params = new URLSearchParams(window.location.search);
+const problemId = params.get("id");
+const editor = createCppEditor(document.querySelector("#code-editor"));
+let loggedInUser = null;
+```
+
+后面增加：
+
+```js
+const submitButton = document.querySelector("#submit-code");
+submitButton.disabled = true;
+```
+
+然后在 `configureSubmitState()` 中删除局部重复声明：
+
+```js
+const submitButton = document.querySelector("#submit-code");
+```
+
+Ubuntu 操作命令：
+
+```bash
+cd ~/project
+nano public/js/problem-detail.js
+```
+
+保存后重启服务：
+
+```bash
+# 在服务运行终端按 Ctrl+C
+cd ~/project
+bash scripts/start_server.sh config/app.conf
+```
+
+### 当前新增阻塞：后端数据库接口偶发 500
+
+多次回归时发现后端接口间歇性返回：
+
+```json
+{"data":null,"message":"database error","success":false}
+```
+
+受影响接口包括：
+
+```text
+POST /api/user/login
+GET /api/problems
+GET /api/problems/1
+```
+
+特点：
+
+- 不是稳定复现；同一接口重试后可能返回 200。
+- `/health` 通常仍返回正常。
+- 该问题会阻塞页面级登录、提交、判题展示回归。
+
+在 Ubuntu 终端执行以下命令复现和定位：
+
+```bash
+cd ~/project
+for i in {1..20}; do
+  echo "---- problems $i ----"
+  curl -s -w "\nHTTP %{http_code}\n" http://127.0.0.1:8080/api/problems
+done
+```
+
+```bash
+cd ~/project
+for i in {1..20}; do
+  echo "---- login $i ----"
+  curl -s -w "\nHTTP %{http_code}\n" -X POST http://127.0.0.1:8080/api/user/login \
+    -H 'Content-Type: application/json' \
+    -d '{"username":"user1","password":"password"}'
+done
+```
+
+同时观察服务运行终端是否打印数据库错误。如果有输出，下次优先根据该错误定位 MySQL 连接、权限、连接数或查询异常。
+
+### 下一次继续测试步骤
+
+1. 在 Ubuntu 同步 `public/js/problem-detail.js` 的提交按钮初始禁用修复。
+2. 重启服务。
+3. 确认服务健康：
+
+```bash
+curl http://127.0.0.1:8080/health
+curl http://127.0.0.1:8080/api/problems
+curl -i -X POST http://127.0.0.1:8080/api/user/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"user1","password":"password"}'
+```
+
+4. 如果仍出现 `database error`，先解决数据库 500，不要继续跑页面判题用例。
+5. 数据库接口稳定后，优先重跑：
+
+```text
+WEB-014, WEB-015, WEB-016, WEB-017,
+WEB-019, WEB-020, WEB-021, WEB-030
+```
+
+6. 然后补跑：
+
+```text
+WEB-032, WEB-035, WEB-037, WEB-038
+```
+
+### Playwright 备注
+
+- 后续不再强制加 `--headed`。
+- `playwright-cli open` 当前可生成快照，但快照可能早于异步接口渲染完成；验证异步 DOM 时，需要等待页面内容稳定后再判断。
+- CodeMirror 内容设置应取 `.CodeMirror.CodeMirror` 实例，不要只填隐藏的 `textarea#code-editor`。
+
 ## 测试时间与环境
 
 - 测试日期：2026-06-12
 - 被测地址：`http://127.0.0.1:8080`
 - 测试依据：`web自动化测试文档.md`
 - 自动化工具：`playwright-cli 0.1.13`
-- 浏览器模式：已按要求使用 `playwright-cli ... open ... --headed` 启动有头浏览器
+- 浏览器模式：第一轮曾按要求使用 `--headed`；后续因会话保留问题，不再强制使用 `--headed`
 - 操作节奏：自动化脚本中每个页面操作之间加入了约 `1s` 等待
 
 ## 环境限制
@@ -35,23 +238,25 @@
 ## 总体结果
 
 - 总用例数：38
-- 通过：24
-- 失败：14
+- 第一轮通过：24
+- 第一轮失败：14
+- 当前已确认通过：26
+- 当前未完成或仍有问题：12
 
 ## 已通过用例
 
 ```text
-WEB-001, WEB-002, WEB-004, WEB-005, WEB-006,
+WEB-001, WEB-002, WEB-003, WEB-004, WEB-005, WEB-006,
 WEB-007, WEB-008, WEB-009, WEB-010,
 WEB-011, WEB-012, WEB-013, WEB-018,
-WEB-023, WEB-024, WEB-025, WEB-026, WEB-027,
+WEB-022, WEB-023, WEB-024, WEB-025, WEB-026, WEB-027,
 WEB-028, WEB-029, WEB-031,
 WEB-033, WEB-034, WEB-036
 ```
 
-## 未解决问题
+## 历史问题与当前状态
 
-### 1. 未登录用户无法访问题目列表
+### 1. 未登录用户无法访问题目列表（已解决，WEB-003 已通过）
 
 影响用例：
 
@@ -59,18 +264,21 @@ WEB-033, WEB-034, WEB-036
 WEB-003, WEB-037, WEB-038
 ```
 
-实际情况：
+第一轮实际情况：
 
 - 未登录访问 `/problems.html` 会被前端重定向到 `/login.html?next=%2Fproblems.html`。
 - 文档预期是未登录用户可以浏览题库列表。
 - 相关代码位置：`public/js/problem-list.js` 中 `loadProblems()` 会在 `!user` 时直接跳转登录页。
 
-待确认方向：
+当前处理结果：
 
-- 如果产品预期是“未登录可浏览题库”，需要修改 `problem-list.js`，未登录时仍加载 `GET /api/problems`，只是不展示登录用户的完成状态。
-- 如果产品预期是“题库必须登录后访问”，需要同步更新 `web自动化测试文档.md` 中 WEB-003、WEB-037、WEB-038 的预期。
+- 已按 `web自动化测试文档.md` 的产品预期处理为“未登录可浏览题库”。
+- `public/js/problem-list.js` 已修改：未登录时仍加载 `GET /api/problems`，只是不展示登录用户的完成状态。
+- Ubuntu 运行服务已加载该修改；浏览器 DOM 检查确认未登录可看到 `A+B Problem` 和 `Average Score`。
+- `WEB-003` 已标记为通过。
+- `WEB-037`、`WEB-038` 仍需补完整导航/前进后退流程回归。
 
-### 2. 失败类判题只显示通用 `failed`
+### 2. 失败类判题只显示通用 `failed`（后端已解决，页面仍需回归）
 
 影响用例：
 
@@ -79,7 +287,7 @@ WEB-014, WEB-015, WEB-016, WEB-017,
 WEB-019, WEB-020, WEB-021, WEB-030
 ```
 
-实际情况：
+第一轮实际情况：
 
 - 错误答案、编译错误、空代码、strict 换行不匹配、超时、内存超限、输出超限、隐藏用例失败等场景，页面最终都只显示 `failed`。
 - 文档预期页面显示：
@@ -100,13 +308,14 @@ WEB-019, WEB-020, WEB-021, WEB-030
 - `src/api/submit_api.cpp` 中 `submit_result_json()` 也构造了 `status_text`。
 - 但浏览器实际收到的失败响应未包含 `status`、`status_text` 等字段，只包含 `data.result=failed`。
 
-待确认方向：
+当前处理结果：
 
-- 排查当前运行服务是否是最新构建产物。
-- 如果服务已是最新，应检查 JSON 序列化或 `submit_result_json()` 调用链，确保失败响应包含 `status` 和 `status_text`。
-- 前端 `public/js/problem-detail.js` 当前使用 `submitStatusText(result)`，会优先取 `result.data.status_text`，否则退回 `result.message`；只要后端返回 `status_text`，页面应能显示具体结果。
+- 重新构建/重启后，当前运行服务的 `POST /api/submit` 已返回 `status` 和 `status_text`。
+- 已确认 `Wrong Answer`、`Compile Error`、空代码、strict 换行不匹配的后端响应。
+- 页面代码 `submitStatusText(result)` 已优先读取 `result.data.status_text`。
+- 由于后端接口目前存在间歇性 `database error`，页面级提交展示尚未稳定回归完成；`WEB-014` 到 `WEB-017`、`WEB-019` 到 `WEB-021`、`WEB-030` 仍列为未完成。
 
-### 3. 不存在或已删除题目的详情页错误状态为空
+### 3. 不存在题目的详情页错误状态为空（WEB-022 已解决；WEB-032 待完整回归）
 
 影响用例：
 
@@ -114,20 +323,21 @@ WEB-019, WEB-020, WEB-021, WEB-030
 WEB-022, WEB-032
 ```
 
-实际情况：
+第一轮实际情况：
 
 - 访问 `/problem.html?id=999999999` 时，接口返回 404，浏览器控制台出现 404 资源/请求错误，但 `#problem-content` 为空。
 - 创建题目后删除，再访问 `/problem.html?id=<deletedId>`，接口也返回 404，但详情页内容仍为空。
 - 文档预期页面显示“加载失败”“题目不存在”或等价错误状态。
 
-待确认方向：
+当前处理结果：
 
-- 检查 `public/js/problem-detail.js` 的 `loadProblem()`：
-  - 当前只有 `catch` 时写入 `加载失败`。
-  - 如果 `api.getProblem()` 返回的是正常 JSON 响应但 `success=false`，当前代码不会写错误文案。
-- 建议在 `!result.success` 时显式设置 `#problem-content` 为 `加载失败` 或 `题目不存在`。
+- `public/js/problem-detail.js` 已在 `!result.success` 时显示“题目不存在”。
+- Ubuntu 运行服务已加载该修改；访问 `/problem.html?id=999999999` 时，页面显示“题目不存在”。
+- 直接请求 `/api/problems/999999999` 返回 HTTP 404。
+- `WEB-022` 已通过。
+- `WEB-032` 还需要创建临时题目、删除后访问详情页，尚未完成完整回归。
 
-### 4. 前台退出后验证详情页按钮状态的流程不符合文档
+### 4. 前台退出后验证详情页按钮状态的流程不符合文档（待回归）
 
 影响用例：
 
@@ -141,10 +351,11 @@ WEB-035
 - 测试未能进入题目详情页检查 `#submit-code` 是否禁用或提示登录。
 - 根因与“未登录无法访问题库”一致。
 
-待确认方向：
+当前处理方向：
 
-- 若允许未登录访问详情页，则需要让退出后仍可打开 `/problem.html?id=1` 并显示“登录后提交”。
-- 若要求题库/详情都必须登录，则需要修改 WEB-035 的预期。
+- 已确认产品预期按 `web自动化测试文档.md`：未登录可浏览题库和详情，但不能提交。
+- 题库未登录访问已经修复。
+- 详情页未登录访问之前已能显示题面和“登录后提交”；还需要在本轮修复后重新完整跑 `WEB-035`。
 
 ## 重要通过点
 
@@ -162,25 +373,120 @@ WEB-035
 
 ## 下次继续测试建议
 
-1. 优先修复或确认未登录题库访问策略。
-2. 重新构建并确认正在运行的服务是否包含最新 `submit_api.cpp` 逻辑。
-3. 修复失败类判题响应或前端显示后，重点重跑：
+> 本节为第一轮测试后的历史建议，已被文档顶部“最新状态总览（2026-06-13）”更新。下次继续时优先按顶部步骤执行。
+
+1. 未登录题库访问策略已经修复，`WEB-003` 已通过。
+2. `submit_api.cpp` 相关后端响应已经通过重新构建/重启确认生效，失败类提交接口已返回 `status_text`。
+3. 当前仍需在数据库接口稳定后，重点重跑页面级展示：
 
 ```text
 WEB-014, WEB-015, WEB-016, WEB-017,
 WEB-019, WEB-020, WEB-021, WEB-030
 ```
 
-4. 修复不存在题目详情错误状态后，重跑：
+4. 不存在题目详情错误状态已经修复，`WEB-022` 已通过；删除后详情页仍需重跑：
 
 ```text
-WEB-022, WEB-032
+WEB-032
 ```
 
-5. 根据题库访问策略重跑：
+5. 根据已修复的题库访问策略继续补跑：
 
 ```text
-WEB-003, WEB-035, WEB-037, WEB-038
+WEB-035, WEB-037, WEB-038
 ```
 
 6. 如果下次仍使用当前 Windows 环境，建议继续分批跑，避免全量一次性执行被外层超时截断。
+
+## 2026-06-13 继续处理记录
+
+### 已完成并确认
+
+- 已确认当前运行服务的 `POST /api/submit` 失败类响应已包含具体判题字段。使用 `user1/password` 登录后，错误答案接口返回：
+
+```json
+{"data":{"result":"failed","status":"wrong_answer","status_text":"Wrong Answer","testcase":1},"message":"wrong_answer","success":true}
+```
+
+- 进一步确认了以下代表场景的后端响应：
+  - 编译错误：`status=compile_error`，`status_text=Compile Error`
+  - 空代码：`status=compile_error`，`status_text=Compile Error`
+  - strict 换行不匹配：`status=wrong_answer`，`status_text=Wrong Answer`
+
+这说明“失败类判题只显示通用 `failed`”的后端响应问题已经通过重新构建/重启服务得到修复。前端 `problem-detail.js` 已经优先读取 `result.data.status_text`，因此在服务和静态文件一致时，页面应显示具体判题结果。
+
+### 本地已修改，待同步到 Ubuntu 运行目录后验证（历史状态，已被后续记录覆盖）
+
+- 已在当前工作区修改 `public/js/problem-list.js`：未登录用户不再被 `/problems.html` 重定向到登录页；未登录时题目状态统一显示“未完成”，不读取本地通过状态。
+- 已在当前工作区修改 `public/js/problem-detail.js`：`api.getProblem()` 返回 `success=false` 时，`#problem-content` 显示“题目不存在”，避免不存在或已删除题目详情页空白。
+
+后续已经确认 Ubuntu 运行服务加载了这两个前端修改；见“2026-06-13 前端同步后回归记录”。
+
+### 当前阻塞（历史状态，已被后续记录部分解决）
+
+- 旧阻塞：运行中的服务返回旧版前端 JS。该问题已解决，`WEB-003` 和 `WEB-022` 已通过。
+- 后续验证过程中，`POST /api/user/login` 一度返回 HTTP 500 且响应体为空；同时 `/health` 和 `/api/problems` 正常。需要在 Ubuntu 服务终端查看日志，并确认 MySQL 连接与 `user1/password` 基线数据仍正常。
+
+### 下一步重跑重点
+
+同步前端文件并重启服务后，优先重跑：
+
+```text
+WEB-003, WEB-022, WEB-032, WEB-035, WEB-037, WEB-038
+```
+
+登录接口恢复后，继续重跑失败类判题页面展示：
+
+```text
+WEB-014, WEB-015, WEB-016, WEB-017,
+WEB-019, WEB-020, WEB-021, WEB-030
+```
+
+## 2026-06-13 前端同步后回归记录
+
+### 已完成并确认
+
+- Ubuntu 运行服务已经加载新版 `public/js/problem-list.js`。通过浏览器 DOM 检查确认：未登录访问 `/problems.html` 不再跳转登录页，页面显示 2 道题：
+  - `A+B Problem`
+  - `Average Score`
+  - 两题状态均为“未完成”
+
+  对应 `WEB-003` 的核心预期已通过。
+
+- Ubuntu 运行服务已经加载新版 `public/js/problem-detail.js`。通过浏览器 DOM 检查确认：访问 `/problem.html?id=999999999` 时，`#problem-content` 显示“题目不存在”，`#submit-result` 显示“登录后提交”。
+
+  对应 `WEB-022` 的页面错误状态预期已通过。
+
+- 直接请求 `/api/problems/999999999` 返回 HTTP 404，符合不存在题目的接口预期。
+
+### 本地新增修复，待同步到 Ubuntu 后验证
+
+- 已在当前工作区进一步修改 `public/js/problem-detail.js`：页面脚本启动时先禁用 `#submit-code`，等待 `currentUser()` 完成后再按登录态启用，避免自动化或用户在登录态检查完成前点击提交按钮导致误显示“请先登录”。
+
+该修复尚未同步到 Ubuntu `~/project/public/js/problem-detail.js`，因此页面级提交回归仍可能遇到登录态竞态。
+
+### 当前新增阻塞
+
+- 多次回归时发现后端接口出现间歇性 HTTP 500，响应为：
+
+```json
+{"data":null,"message":"database error","success":false}
+```
+
+- 受影响接口包括：
+  - `POST /api/user/login`
+  - `GET /api/problems`
+  - `GET /api/problems/1`
+
+- 这些 500 不是稳定复现；同一接口重试后可能返回 200。因此目前无法稳定完成页面级提交回归，也不能把 `WEB-014` 到 `WEB-021` 的页面展示全部标记为通过。
+
+### 下一步
+
+1. 将当前工作区的 `public/js/problem-detail.js` 再同步一次到 Ubuntu 运行目录，确保提交按钮初始禁用竞态修复生效。
+2. 在 Ubuntu 服务终端观察 `database error` 出现时的标准错误输出。
+3. 检查 MySQL 连接稳定性和服务端配置后，重跑页面级提交回归：
+
+```text
+WEB-014, WEB-015, WEB-016, WEB-017,
+WEB-019, WEB-020, WEB-021, WEB-030
+```
