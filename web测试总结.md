@@ -36,6 +36,53 @@ WEB-032, WEB-035, WEB-037, WEB-038
 - `WEB-032` 需要重新创建临时题目、删除后访问详情页，尚未完成完整回归。
 - `WEB-035`、`WEB-037`、`WEB-038` 依赖未登录题库策略修复后的完整页面流程，尚未完成完整回归。
 
+### 2026-06-15 接手记录
+
+- Ubuntu 侧已确认 `oj_server` 单进程监听 `0.0.0.0:8080`，且 `GET /health` 返回：
+
+  ```json
+  {"data":{"status":"ok"},"message":"ok","success":true}
+  ```
+
+- 当前 Windows 侧 Codex/Playwright 执行环境无法直连该 Ubuntu 服务：本机 `127.0.0.1:8080` 由 `Code.exe` 监听，请求 `/health` 连接后无响应；`localhost`、IPv6 loopback、已探测的 VS Code 转发端口和候选虚拟网卡地址均未返回 OJ 服务响应。因此本次不能在 Windows 侧给页面用例判定通过或失败。
+- 已新增 Ubuntu 侧可直接执行的目标回归脚本：`scripts/web_targeted_regression.playwright.js`。该脚本覆盖以下待回归用例：
+
+  ```text
+  WEB-014, WEB-015, WEB-016, WEB-017,
+  WEB-019, WEB-020, WEB-021, WEB-030,
+  WEB-032, WEB-035, WEB-037, WEB-038
+  ```
+
+- Ubuntu 下建议执行：
+
+  ```bash
+  cd ~/project
+  npx --no-install playwright-cli open about:blank
+  npx --no-install playwright-cli run-code --filename=scripts/web_targeted_regression.playwright.js
+  npx --no-install playwright-cli close
+  ```
+
+  如果 `playwright-cli` 是全局命令，也可以把 `npx --no-install playwright-cli` 替换为 `playwright-cli`。
+
+- 脚本会先做轻量接口前置检查：`/health`、`/api/problems`、`/api/user/login`。如果前置检查失败，不应继续采信页面回归结果。
+
+### 2026-06-15 Ubuntu 侧反馈
+
+- Ubuntu 侧非沙箱接口确认通过：
+
+  ```text
+  GET /health -> 200
+  GET /api/problems -> 200，包含 A+B Problem、Average Score
+  POST /api/user/login -> 200，返回 user1
+  ```
+
+- 目标页面回归尚未执行，原因不是后端接口，而是自动化执行环境：
+  - `playwright-cli` 全局命令不存在。
+  - `npx --no-install playwright-cli --version`、`open about:blank`、`run-code --filename=...` 均只显示等待 spinner，10 秒后超时退出。
+  - Ubuntu 侧 `~/project/scripts/web_targeted_regression.playwright.js` 文件不存在，说明 Windows 工作区新增脚本尚未同步到 Ubuntu 项目目录。
+
+- 当前结论：不能更新 `WEB-014` 等 12 个待回归用例的通过状态。下一步需要先同步 `scripts/web_targeted_regression.playwright.js` 到 Ubuntu 的 `~/project/scripts/`，再解决 Ubuntu 下 `playwright-cli` 可执行性。
+
 ### 本轮已经修复并验证
 
 1. 未登录题库访问策略已修复并验证。
