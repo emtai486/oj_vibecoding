@@ -170,15 +170,18 @@ TEST(SubmitApiContractTest, RejectsAnonymousSubmitBeforeParsingOrDatabase) {
   const auto auth_pos =
       submit_api.find("if (!has_submit_session(request, sessions))");
   const auto parse_pos = submit_api.find("parse_json_body");
-  const auto db_pos = submit_api.find("db::MySqlClient client(mysql_config)");
+  const auto db_pos = submit_api.find("db::PooledMySqlClient client");
+  const auto acquire_pos = submit_api.find("acquire_db");
 
   ASSERT_NE(route_pos, std::string::npos);
   ASSERT_NE(auth_pos, std::string::npos);
   ASSERT_NE(parse_pos, std::string::npos);
   ASSERT_NE(db_pos, std::string::npos);
+  ASSERT_NE(acquire_pos, std::string::npos);
   EXPECT_LT(route_pos, auth_pos);
   EXPECT_LT(auth_pos, parse_pos);
   EXPECT_LT(auth_pos, db_pos);
+  EXPECT_LT(auth_pos, acquire_pos);
   expect_contains(submit_api, "current_user(request, sessions).has_value()");
   expect_contains(submit_api, "current_admin(request, sessions).has_value()");
   expect_contains(submit_api, "httplib::StatusCode::Unauthorized_401");

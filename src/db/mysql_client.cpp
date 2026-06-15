@@ -1,9 +1,20 @@
 #include "db/mysql_client.h"
 
+#include <algorithm>
+#include <mutex>
 #include <stdexcept>
 #include <utility>
 
 namespace oj::db {
+namespace {
+
+std::once_flag mysql_library_init_once;
+
+void init_mysql_library_once() {
+  std::call_once(mysql_library_init_once, [] { mysql_library_init(0, nullptr, nullptr); });
+}
+
+}  // namespace
 
 MySqlClient::MySqlClient(config::MySqlConfig config)
     : config_(std::move(config)) {}
@@ -26,6 +37,7 @@ MySqlClient& MySqlClient::operator=(MySqlClient&& other) noexcept {
 }
 
 bool MySqlClient::connect(std::string* error) {
+  init_mysql_library_once();
   close();
 
   connection_ = mysql_init(nullptr);
@@ -196,6 +208,139 @@ void MySqlClient::set_error(std::string* error,
   if (error != nullptr) {
     *error = message;
   }
+}
+
+PooledMySqlClient::PooledMySqlClient(MySqlConnectionPool* pool,
+                                     std::unique_ptr<MySqlClient> client)
+    : pool_(pool), client_(std::move(client)) {}
+
+PooledMySqlClient::~PooledMySqlClient() { reset(); }
+
+PooledMySqlClient::PooledMySqlClient(PooledMySqlClient&& other) noexcept
+    : pool_(other.pool_), client_(std::move(other.client_)) {
+  other.pool_ = nullptr;
+}
+
+PooledMySqlClient& PooledMySqlClient::operator=(
+    PooledMySqlClient&& other) noexcept {
+  if (this != &other) {
+    reset();
+    pool_ = other.pool_;
+    client_ = std::move(other.client_);
+    other.pool_ = nullptr;
+  }
+  return *this;
+}
+
+MySqlClient* PooledMySqlClient::operator->() noexcept {
+  return client_.get();
+}
+
+const MySqlClient* PooledMySqlClient::operator->() const noexcept {
+  return client_.get();
+}
+
+MySqlClient& PooledMySqlClient::operator*() noexcept { return *client_; }
+
+const MySqlClient& PooledMySqlClient::operator*() const noexcept {
+  return *client_;
+}
+
+PooledMySqlClient::operator bool() const noexcept {
+  return client_ != nullptr;
+}
+
+void PooledMySqlClient::reset() noexcept {
+  if (client_ != nullptr && pool_ != nullptr) {
+    pool_->release(std::move(client_));
+  }
+  pool_ = nullptr;
+  client_.reset();
+}
+
+MySqlConnectionPool::MySqlConnectionPool(config::MySqlConfig config)
+    : config_(std::move(config)),
+      max_size_(std::max<std::uint32_t>(1, config_.pool_size)) {}
+
+bool MySqlConnectionPool::acquire(PooledMySqlClient* output,
+                                  std::string* error) {
+  if (output == nullptr) {
+    if (error != nullptr) {
+      *error = "mysql pool output is null";
+    }
+    return false;
+  }
+
+  std::unique_ptr<MySqlClient> client;
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    condition_.wait(lock, [this] {
+      return !idle_.empty() || open_count_ < max_size_;
+    });
+
+    if (!idle_.empty()) {
+      client = std::move(idle_.front());
+      idle_.pop_front();
+    } else {
+      ++open_count_;
+      client = std::make_unique<MySqlClient>(config_);
+    }
+  }
+
+  if (!ensure_connected(client.get(), error)) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    --open_count_;
+    condition_.notify_one();
+    return false;
+  }
+
+  *output = PooledMySqlClient(this, std::move(client));
+  return true;
+}
+
+std::uint32_t MySqlConnectionPool::max_size() const noexcept {
+  return max_size_;
+}
+
+bool MySqlConnectionPool::ensure_connected(MySqlClient* client,
+                                           std::string* error) const {
+  if (client == nullptr) {
+    if (error != nullptr) {
+      *error = "mysql client is null";
+    }
+    return false;
+  }
+
+  if (!client->is_connected()) {
+    return client->connect(error);
+  }
+
+  std::string ping_error;
+  if (client->ping(&ping_error)) {
+    return true;
+  }
+
+  if (!client->connect(error)) {
+    if (error != nullptr && error->empty()) {
+      *error = ping_error;
+    }
+    return false;
+  }
+  return true;
+}
+
+void MySqlConnectionPool::release(std::unique_ptr<MySqlClient> client) noexcept {
+  if (client == nullptr) {
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (idle_.size() < max_size_) {
+    idle_.push_back(std::move(client));
+  } else {
+    --open_count_;
+  }
+  condition_.notify_one();
 }
 
 }  // namespace oj::db

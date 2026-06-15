@@ -5,6 +5,10 @@
 #include <mysql/mysql.h>
 
 #include <cstdint>
+#include <condition_variable>
+#include <deque>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -49,6 +53,61 @@ class MySqlClient {
 
   config::MySqlConfig config_;
   MYSQL* connection_ = nullptr;
+};
+
+class MySqlConnectionPool;
+
+class PooledMySqlClient {
+ public:
+  PooledMySqlClient() = default;
+  ~PooledMySqlClient();
+
+  PooledMySqlClient(const PooledMySqlClient&) = delete;
+  PooledMySqlClient& operator=(const PooledMySqlClient&) = delete;
+
+  PooledMySqlClient(PooledMySqlClient&& other) noexcept;
+  PooledMySqlClient& operator=(PooledMySqlClient&& other) noexcept;
+
+  MySqlClient* operator->() noexcept;
+  const MySqlClient* operator->() const noexcept;
+  MySqlClient& operator*() noexcept;
+  const MySqlClient& operator*() const noexcept;
+  explicit operator bool() const noexcept;
+
+  void reset() noexcept;
+
+ private:
+  friend class MySqlConnectionPool;
+
+  PooledMySqlClient(MySqlConnectionPool* pool,
+                    std::unique_ptr<MySqlClient> client);
+
+  MySqlConnectionPool* pool_ = nullptr;
+  std::unique_ptr<MySqlClient> client_;
+};
+
+class MySqlConnectionPool {
+ public:
+  explicit MySqlConnectionPool(config::MySqlConfig config);
+
+  MySqlConnectionPool(const MySqlConnectionPool&) = delete;
+  MySqlConnectionPool& operator=(const MySqlConnectionPool&) = delete;
+
+  bool acquire(PooledMySqlClient* client, std::string* error);
+  std::uint32_t max_size() const noexcept;
+
+ private:
+  friend class PooledMySqlClient;
+
+  bool ensure_connected(MySqlClient* client, std::string* error) const;
+  void release(std::unique_ptr<MySqlClient> client) noexcept;
+
+  config::MySqlConfig config_;
+  std::uint32_t max_size_;
+  mutable std::mutex mutex_;
+  std::condition_variable condition_;
+  std::deque<std::unique_ptr<MySqlClient>> idle_;
+  std::uint32_t open_count_ = 0;
 };
 
 }  // namespace oj::db

@@ -1,7 +1,7 @@
 #include "api/user_api.h"
 
+#include "api/database_helpers.h"
 #include "auth/password.h"
-#include "db/mysql_client.h"
 #include "db/user_repository.h"
 #include "util/json_response.h"
 
@@ -13,17 +13,6 @@
 
 namespace oj::api {
 namespace {
-
-bool connect_db(db::MySqlClient* client, httplib::Response& response) {
-  std::string error;
-  if (!client->connect(&error)) {
-    oj::util::send_error(response,
-                         httplib::StatusCode::InternalServerError_500,
-                         "database error");
-    return false;
-  }
-  return true;
-}
 
 const oj::util::json::Value* object_field(const oj::util::json::Value& body,
                                           const std::string& key) {
@@ -77,7 +66,7 @@ std::optional<auth::SessionUser> current_user(
 }  // namespace
 
 void register_user_routes(httplib::Server& server,
-                          config::MySqlConfig mysql_config,
+                          std::shared_ptr<db::MySqlConnectionPool> mysql_pool,
                           std::shared_ptr<auth::SessionStore> sessions) {
   server.Get("/api/user/me",
              [sessions](const httplib::Request& request,
@@ -98,8 +87,8 @@ void register_user_routes(httplib::Server& server,
              });
 
   server.Post("/api/user/register",
-              [mysql_config](const httplib::Request& request,
-                             httplib::Response& response) {
+              [mysql_pool](const httplib::Request& request,
+                           httplib::Response& response) {
                 oj::util::json::Value body;
                 if (!oj::util::parse_json_body(request, &body, response)) {
                   return;
@@ -115,20 +104,17 @@ void register_user_routes(httplib::Server& server,
                   return;
                 }
 
-                db::MySqlClient client(mysql_config);
-                if (!connect_db(&client, response)) {
+                db::PooledMySqlClient client;
+                if (!acquire_db(mysql_pool, request, response, &client)) {
                   return;
                 }
 
-                db::UserRepository repository(client);
+                db::UserRepository repository(*client);
                 std::optional<model::User> existing;
                 std::string error;
                 if (!repository.find_by_username(*username, &existing,
                                                  &error)) {
-                  oj::util::send_error(
-                      response,
-                      httplib::StatusCode::InternalServerError_500,
-                      "database error");
+                  send_database_error(request, response, "find user", error);
                   return;
                 }
                 if (existing.has_value()) {
@@ -142,10 +128,7 @@ void register_user_routes(httplib::Server& server,
                 if (!repository.create(*username,
                                        auth::hash_password(*password), &id,
                                        &error)) {
-                  oj::util::send_error(
-                      response,
-                      httplib::StatusCode::InternalServerError_500,
-                      "database error");
+                  send_database_error(request, response, "create user", error);
                   return;
                 }
 
@@ -155,8 +138,8 @@ void register_user_routes(httplib::Server& server,
               });
 
   server.Post("/api/user/login",
-              [mysql_config, sessions](const httplib::Request& request,
-                                       httplib::Response& response) {
+              [mysql_pool, sessions](const httplib::Request& request,
+                                     httplib::Response& response) {
                 oj::util::json::Value body;
                 if (!oj::util::parse_json_body(request, &body, response)) {
                   return;
@@ -171,19 +154,16 @@ void register_user_routes(httplib::Server& server,
                   return;
                 }
 
-                db::MySqlClient client(mysql_config);
-                if (!connect_db(&client, response)) {
+                db::PooledMySqlClient client;
+                if (!acquire_db(mysql_pool, request, response, &client)) {
                   return;
                 }
 
-                db::UserRepository repository(client);
+                db::UserRepository repository(*client);
                 std::optional<model::User> user;
                 std::string error;
                 if (!repository.find_by_username(*username, &user, &error)) {
-                  oj::util::send_error(
-                      response,
-                      httplib::StatusCode::InternalServerError_500,
-                      "database error");
+                  send_database_error(request, response, "find user", error);
                   return;
                 }
 

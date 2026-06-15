@@ -5,13 +5,18 @@
 #include "api/submit_api.h"
 #include "api/user_api.h"
 #include "auth/session.h"
+#include "db/mysql_client.h"
 #include "util/json_response.h"
 
+#include <cerrno>
 #include <exception>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <utility>
+
+#include <sys/socket.h>
 
 namespace oj::app {
 namespace {
@@ -94,13 +99,22 @@ std::unique_ptr<httplib::Server> create_server(const config::AppConfig& config,
                                                std::string public_dir) {
   auto server = std::make_unique<httplib::Server>();
   auto sessions = std::make_shared<auth::SessionStore>();
+  auto mysql_pool = std::make_shared<db::MySqlConnectionPool>(config.mysql);
+  server->set_socket_options([](socket_t sock) {
+    const int enabled = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enabled,
+                   sizeof(enabled)) != 0) {
+      std::cerr << "failed to set SO_REUSEADDR: " << std::strerror(errno)
+                << '\n';
+    }
+  });
   register_error_handlers(*server);
   register_static_files(*server, public_dir);
   register_base_routes(*server);
-  api::register_problem_routes(*server, config.mysql);
-  api::register_user_routes(*server, config.mysql, sessions);
-  api::register_submit_routes(*server, config.mysql, sessions);
-  api::register_admin_routes(*server, config.mysql, sessions);
+  api::register_problem_routes(*server, mysql_pool);
+  api::register_user_routes(*server, mysql_pool, sessions);
+  api::register_submit_routes(*server, mysql_pool, sessions);
+  api::register_admin_routes(*server, mysql_pool, sessions);
   return server;
 }
 

@@ -2,6 +2,7 @@
 
 #include "auth/session.h"
 #include "config/config.h"
+#include "db/mysql_client.h"
 
 #include <httplib.h>
 
@@ -10,7 +11,7 @@
 namespace oj::api {
 
 void register_submit_routes(httplib::Server& server,
-                            config::MySqlConfig mysql_config,
+                            std::shared_ptr<db::MySqlConnectionPool> mysql_pool,
                             std::shared_ptr<auth::SessionStore> sessions);
 
 }  // namespace oj::api

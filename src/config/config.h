@@ -18,6 +18,7 @@ struct MySqlConfig {
   std::string database = "oj";
   std::string charset = "utf8mb4";
   std::uint32_t connect_timeout_seconds = 5;
+  std::uint32_t pool_size = 8;
 };
 
 struct AppConfig {

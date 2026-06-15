@@ -114,6 +114,7 @@ AppConfig load_config(const std::string& path) {
   assign_string(values, "mysql.charset", config.mysql.charset);
   assign_uint(values, "mysql.connect_timeout_seconds",
               config.mysql.connect_timeout_seconds, 1, 60);
+  assign_uint(values, "mysql.pool_size", config.mysql.pool_size, 1, 64);
 
   return config;
 }

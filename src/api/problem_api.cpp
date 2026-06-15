@@ -1,6 +1,6 @@
 #include "api/problem_api.h"
 
-#include "db/mysql_client.h"
+#include "api/database_helpers.h"
 #include "db/problem_repository.h"
 #include "db/testcase_repository.h"
 #include "model/problem.h"
@@ -15,17 +15,6 @@
 
 namespace oj::api {
 namespace {
-
-bool connect_db(db::MySqlClient* client, httplib::Response& response) {
-  std::string error;
-  if (!client->connect(&error)) {
-    oj::util::send_error(response,
-                         httplib::StatusCode::InternalServerError_500,
-                         "database error");
-    return false;
-  }
-  return true;
-}
 
 oj::util::json::Value problem_summary_json(
     const model::ProblemSummary& problem) {
@@ -73,21 +62,19 @@ oj::util::json::Value problem_json(
 }  // namespace
 
 void register_problem_routes(httplib::Server& server,
-                             config::MySqlConfig mysql_config) {
-  server.Get("/api/problems", [mysql_config](const httplib::Request&,
-                                             httplib::Response& response) {
-    db::MySqlClient client(mysql_config);
-    if (!connect_db(&client, response)) {
+                             std::shared_ptr<db::MySqlConnectionPool> mysql_pool) {
+  server.Get("/api/problems", [mysql_pool](const httplib::Request& request,
+                                           httplib::Response& response) {
+    db::PooledMySqlClient client;
+    if (!acquire_db(mysql_pool, request, response, &client)) {
       return;
     }
 
-    db::ProblemRepository repository(client);
+    db::ProblemRepository repository(*client);
     std::vector<model::ProblemSummary> problems;
     std::string error;
     if (!repository.list(&problems, &error)) {
-      oj::util::send_error(response,
-                           httplib::StatusCode::InternalServerError_500,
-                           "database error");
+      send_database_error(request, response, "list problems", error);
       return;
     }
 
@@ -100,24 +87,21 @@ void register_problem_routes(httplib::Server& server,
   });
 
   server.Get(R"(/api/problems/(\d+))",
-             [mysql_config](const httplib::Request& request,
-                            httplib::Response& response) {
+             [mysql_pool](const httplib::Request& request,
+                          httplib::Response& response) {
                const auto id =
                    static_cast<std::uint64_t>(std::stoull(request.matches[1]));
 
-               db::MySqlClient client(mysql_config);
-               if (!connect_db(&client, response)) {
+               db::PooledMySqlClient client;
+               if (!acquire_db(mysql_pool, request, response, &client)) {
                  return;
                }
 
-               db::ProblemRepository problem_repository(client);
+               db::ProblemRepository problem_repository(*client);
                std::optional<model::Problem> problem;
                std::string error;
                if (!problem_repository.find_by_id(id, &problem, &error)) {
-                 oj::util::send_error(
-                     response,
-                     httplib::StatusCode::InternalServerError_500,
-                     "database error");
+                 send_database_error(request, response, "find problem", error);
                  return;
                }
 
@@ -128,14 +112,12 @@ void register_problem_routes(httplib::Server& server,
                  return;
                }
 
-               db::TestcaseRepository testcase_repository(client);
+               db::TestcaseRepository testcase_repository(*client);
                std::vector<model::Testcase> samples;
                if (!testcase_repository.list_for_problem(id, true, &samples,
                                                          &error)) {
-                 oj::util::send_error(
-                     response,
-                     httplib::StatusCode::InternalServerError_500,
-                     "database error");
+                 send_database_error(request, response, "list sample testcases",
+                                     error);
                  return;
                }
 

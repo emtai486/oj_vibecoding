@@ -1,6 +1,6 @@
 #include "api/submit_api.h"
 
-#include "db/mysql_client.h"
+#include "api/database_helpers.h"
 #include "db/problem_repository.h"
 #include "db/testcase_repository.h"
 #include "judge/judge_service.h"
@@ -14,17 +14,6 @@
 
 namespace oj::api {
 namespace {
-
-bool connect_db(db::MySqlClient* client, httplib::Response& response) {
-  std::string error;
-  if (!client->connect(&error)) {
-    oj::util::send_error(response,
-                         httplib::StatusCode::InternalServerError_500,
-                         "database error");
-    return false;
-  }
-  return true;
-}
 
 const oj::util::json::Value* object_field(const oj::util::json::Value& body,
                                           const std::string& key) {
@@ -100,11 +89,11 @@ oj::util::json::Value submit_result_json(
 }  // namespace
 
 void register_submit_routes(httplib::Server& server,
-                            config::MySqlConfig mysql_config,
+                            std::shared_ptr<db::MySqlConnectionPool> mysql_pool,
                             std::shared_ptr<auth::SessionStore> sessions) {
   server.Post("/api/submit",
-              [mysql_config, sessions](const httplib::Request& request,
-                                       httplib::Response& response) {
+              [mysql_pool, sessions](const httplib::Request& request,
+                                     httplib::Response& response) {
                 if (!has_submit_session(request, sessions)) {
                   oj::util::send_error(response,
                                        httplib::StatusCode::Unauthorized_401,
@@ -128,20 +117,17 @@ void register_submit_routes(httplib::Server& server,
                   return;
                 }
 
-                db::MySqlClient client(mysql_config);
-                if (!connect_db(&client, response)) {
+                db::PooledMySqlClient client;
+                if (!acquire_db(mysql_pool, request, response, &client)) {
                   return;
                 }
 
-                db::ProblemRepository problem_repository(client);
+                db::ProblemRepository problem_repository(*client);
                 std::optional<model::Problem> problem;
                 std::string error;
                 if (!problem_repository.find_by_id(*problem_id, &problem,
                                                    &error)) {
-                  oj::util::send_error(
-                      response,
-                      httplib::StatusCode::InternalServerError_500,
-                      "database error");
+                  send_database_error(request, response, "find problem", error);
                   return;
                 }
                 if (!problem.has_value()) {
@@ -152,15 +138,13 @@ void register_submit_routes(httplib::Server& server,
                   return;
                 }
 
-                db::TestcaseRepository testcase_repository(client);
+                db::TestcaseRepository testcase_repository(*client);
                 std::vector<model::Testcase> hidden_testcases;
                 if (!testcase_repository.list_for_problem(*problem_id, false,
                                                           &hidden_testcases,
                                                           &error)) {
-                  oj::util::send_error(
-                      response,
-                      httplib::StatusCode::InternalServerError_500,
-                      "database error");
+                  send_database_error(request, response, "list hidden testcases",
+                                      error);
                   return;
                 }
 

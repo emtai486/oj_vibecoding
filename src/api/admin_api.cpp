@@ -1,8 +1,8 @@
 #include "api/admin_api.h"
 
+#include "api/database_helpers.h"
 #include "auth/password.h"
 #include "db/admin_repository.h"
-#include "db/mysql_client.h"
 #include "db/problem_repository.h"
 #include "model/problem.h"
 #include "model/testcase.h"
@@ -17,17 +17,6 @@
 
 namespace oj::api {
 namespace {
-
-bool connect_db(db::MySqlClient* client, httplib::Response& response) {
-  std::string error;
-  if (!client->connect(&error)) {
-    oj::util::send_error(response,
-                         httplib::StatusCode::InternalServerError_500,
-                         "database error");
-    return false;
-  }
-  return true;
-}
 
 const oj::util::json::Value* object_field(const oj::util::json::Value& body,
                                           const std::string& key) {
@@ -203,7 +192,7 @@ oj::util::json::Value problem_created_json(std::uint64_t id,
 }  // namespace
 
 void register_admin_routes(httplib::Server& server,
-                           config::MySqlConfig mysql_config,
+                           std::shared_ptr<db::MySqlConnectionPool> mysql_pool,
                            std::shared_ptr<auth::SessionStore> sessions) {
   server.Get("/api/admin/me",
              [sessions](const httplib::Request& request,
@@ -225,8 +214,8 @@ void register_admin_routes(httplib::Server& server,
              });
 
   server.Post("/api/admin/login",
-              [mysql_config, sessions](const httplib::Request& request,
-                                       httplib::Response& response) {
+              [mysql_pool, sessions](const httplib::Request& request,
+                                     httplib::Response& response) {
                 oj::util::json::Value body;
                 if (!oj::util::parse_json_body(request, &body, response)) {
                   return;
@@ -241,19 +230,16 @@ void register_admin_routes(httplib::Server& server,
                   return;
                 }
 
-                db::MySqlClient client(mysql_config);
-                if (!connect_db(&client, response)) {
+                db::PooledMySqlClient client;
+                if (!acquire_db(mysql_pool, request, response, &client)) {
                   return;
                 }
 
-                db::AdminRepository repository(client);
+                db::AdminRepository repository(*client);
                 std::optional<model::User> admin;
                 std::string error;
                 if (!repository.find_by_username(*username, &admin, &error)) {
-                  oj::util::send_error(
-                      response,
-                      httplib::StatusCode::InternalServerError_500,
-                      "database error");
+                  send_database_error(request, response, "find admin", error);
                   return;
                 }
 
@@ -286,8 +272,8 @@ void register_admin_routes(httplib::Server& server,
               });
 
   server.Post("/api/admin/problems",
-              [mysql_config, sessions](const httplib::Request& request,
-                                       httplib::Response& response) {
+              [mysql_pool, sessions](const httplib::Request& request,
+                                     httplib::Response& response) {
                 if (!require_admin(request, response, sessions)) {
                   return;
                 }
@@ -306,20 +292,17 @@ void register_admin_routes(httplib::Server& server,
                   return;
                 }
 
-                db::MySqlClient client(mysql_config);
-                if (!connect_db(&client, response)) {
+                db::PooledMySqlClient client;
+                if (!acquire_db(mysql_pool, request, response, &client)) {
                   return;
                 }
 
-                db::ProblemRepository repository(client);
+                db::ProblemRepository repository(*client);
                 std::uint64_t id = 0;
                 std::string error;
                 if (!repository.create_with_testcases(problem, testcases, &id,
                                                       &error)) {
-                  oj::util::send_error(
-                      response,
-                      httplib::StatusCode::InternalServerError_500,
-                      "database error");
+                  send_database_error(request, response, "create problem", error);
                   return;
                 }
 
@@ -330,27 +313,25 @@ void register_admin_routes(httplib::Server& server,
               });
 
   server.Delete(R"(/api/admin/problems/(\d+))",
-                [mysql_config, sessions](const httplib::Request& request,
-                                         httplib::Response& response) {
+                [mysql_pool, sessions](const httplib::Request& request,
+                                       httplib::Response& response) {
                   if (!require_admin(request, response, sessions)) {
                     return;
                   }
 
                   const auto id = static_cast<std::uint64_t>(
                       std::stoull(request.matches[1]));
-                  db::MySqlClient client(mysql_config);
-                  if (!connect_db(&client, response)) {
+                  db::PooledMySqlClient client;
+                  if (!acquire_db(mysql_pool, request, response, &client)) {
                     return;
                   }
 
-                  db::ProblemRepository repository(client);
+                  db::ProblemRepository repository(*client);
                   bool deleted = false;
                   std::string error;
                   if (!repository.delete_by_id(id, &deleted, &error)) {
-                    oj::util::send_error(
-                        response,
-                        httplib::StatusCode::InternalServerError_500,
-                        "database error");
+                    send_database_error(request, response, "delete problem",
+                                        error);
                     return;
                   }
 
