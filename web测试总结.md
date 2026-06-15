@@ -83,6 +83,30 @@ WEB-032, WEB-035, WEB-037, WEB-038
 
 - 当前结论：不能更新 `WEB-014` 等 12 个待回归用例的通过状态。下一步需要先同步 `scripts/web_targeted_regression.playwright.js` 到 Ubuntu 的 `~/project/scripts/`，再解决 Ubuntu 下 `playwright-cli` 可执行性。
 
+### 2026-06-15 Ubuntu 自动化环境修复反馈
+
+- Ubuntu 侧 Playwright 自动化环境已恢复：
+
+  ```text
+  playwright-cli --version -> 0.1.14
+  google-chrome --version -> Google Chrome 149.0.7827.114
+  playwright-cli open about:blank -> 成功打开 Browser default
+  ```
+
+- `playwright-cli run-code --filename=scripts/web_targeted_regression.playwright.js` 仍未执行成功，唯一原因是脚本文件尚未同步到 Ubuntu：
+
+  ```text
+  Error: ENOENT: no such file or directory, open '/home/bzx/project/scripts/web_targeted_regression.playwright.js'
+  ```
+
+- 运行后健康检查仍正常：
+
+  ```json
+  {"data":{"status":"ok"},"message":"ok","success":true}
+  ```
+
+- 当前唯一剩余阻塞：将 Windows 工作区的 `scripts/web_targeted_regression.playwright.js` 同步到 Ubuntu 的 `~/project/scripts/web_targeted_regression.playwright.js`，然后重新执行目标回归脚本。
+
 ### 本轮已经修复并验证
 
 1. 未登录题库访问策略已修复并验证。
