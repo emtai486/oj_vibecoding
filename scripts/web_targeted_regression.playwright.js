@@ -2,12 +2,7 @@ async page => {
   const BASE =
     (typeof process !== "undefined" && process.env.OJ_WEB_BASE_URL) ||
     "http://127.0.0.1:8080";
-  const CASE_FILTER = new Set(
-    ((typeof process !== "undefined" && process.env.OJ_WEB_CASES) || "WEB-037")
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean),
-  );
+  const CASE_FILTER = new Set();
   const request = page.context().request;
   const results = [];
   const pageErrors = [];
@@ -41,6 +36,25 @@ async page => {
     return withoutQuery.startsWith(origin)
       ? withoutQuery.slice(origin.length) || "/"
       : withoutQuery;
+  }
+
+  async function initCaseFilter() {
+    let raw = "";
+    if (typeof process !== "undefined" && process.env.OJ_WEB_CASES) {
+      raw = process.env.OJ_WEB_CASES;
+    }
+    if (!raw) {
+      try {
+        raw = await page.evaluate(() => window.name || "");
+      } catch {
+        raw = "";
+      }
+    }
+    raw
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .forEach((value) => CASE_FILTER.add(value));
   }
 
   async function jsonResponse(response) {
@@ -262,6 +276,8 @@ int main() {
 }
 `,
   };
+
+  await initCaseFilter();
 
   const preflight = {
     health: await apiGet("/health"),

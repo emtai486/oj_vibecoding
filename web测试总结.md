@@ -36,6 +36,27 @@ WEB-033, WEB-034, WEB-035, WEB-036, WEB-037, WEB-038
 无
 ```
 
+### 最终验收结论
+
+- `web自动化测试文档.md` 中定义的 `WEB-001` 到 `WEB-038` 共 `38` 个 Web 自动化用例已全部完成并确认通过。
+- 当前没有未完成、待回归或阻塞中的 Web 自动化用例。
+- 最后一项待复核用例 `WEB-037` 已在 Ubuntu 侧通过，结果为：
+
+  ```text
+  summary.total = 1
+  summary.passed = 1
+  summary.failed = 0
+  WEB-037 PASS: home -> problems -> detail -> home -> login/register
+  ```
+
+- 最终服务健康检查通过：
+
+  ```json
+  {"data":{"status":"ok"},"message":"ok","success":true}
+  ```
+
+- 临时题目清理已确认：`/api/problems` 中无标题包含 `Web Auto Problem` 的残留题目。
+
 说明：
 
 - `WEB-014` 到 `WEB-017`、`WEB-019` 到 `WEB-021`、`WEB-030`、`WEB-032`、`WEB-035`、`WEB-037`、`WEB-038` 已由 Ubuntu 侧目标回归脚本确认通过。
@@ -169,7 +190,8 @@ WEB-033, WEB-034, WEB-035, WEB-036, WEB-037, WEB-038
 
   未出现 `new URL`，已包含 `OJ_WEB_CASES` 和 `currentPath`。
 
-- `playwright-cli run-code` 环境确认：该命令把脚本放在独立 `vm` 上下文执行，函数内 `process` 和 `URL` 都是 `undefined`；因此 `new URL(...)` 不能使用，shell 传入的 `OJ_WEB_CASES` 也不能在脚本内直接读取。本轮脚本临时默认过滤为 `WEB-037`，以确保只复跑该用例。
+- `playwright-cli run-code` 环境确认：该命令把脚本放在独立 `vm` 上下文执行，函数内 `process` 和 `URL` 都是 `undefined`；因此 `new URL(...)` 不能使用，shell 传入的 `OJ_WEB_CASES` 也不能在脚本内直接读取。本轮 Ubuntu 侧曾临时将脚本默认过滤为 `WEB-037`，以确保只复跑该用例。
+- Windows 工作区中的当前脚本已恢复为默认执行完整 12 项目标回归；如需单独过滤用例，可先设置页面 `window.name`，或在支持 `process.env` 的执行环境中设置 `OJ_WEB_CASES`。
 
 - 同步修复首页入口：未登录状态下 `#landing-problems-link` 和 `#landing-flow-link` 都指向 `/problems.html`，符合“未登录用户可以浏览题库和题目详情，但不能提交代码”的文档预期。
 
