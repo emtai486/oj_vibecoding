@@ -2,6 +2,12 @@ async page => {
   const BASE =
     (typeof process !== "undefined" && process.env.OJ_WEB_BASE_URL) ||
     "http://127.0.0.1:8080";
+  const CASE_FILTER = new Set(
+    ((typeof process !== "undefined" && process.env.OJ_WEB_CASES) || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
   const request = page.context().request;
   const results = [];
   const pageErrors = [];
@@ -26,6 +32,15 @@ async page => {
     return Array.isArray(expected)
       ? expected.some((value) => haystack.includes(value))
       : haystack.includes(expected);
+  }
+
+  function currentPath() {
+    const withoutHash = page.url().split("#", 1)[0];
+    const withoutQuery = withoutHash.split("?", 1)[0];
+    const origin = BASE.replace(/\/$/, "");
+    return withoutQuery.startsWith(origin)
+      ? withoutQuery.slice(origin.length) || "/"
+      : withoutQuery;
   }
 
   async function jsonResponse(response) {
@@ -184,6 +199,10 @@ async page => {
   }
 
   async function runCase(id, fn) {
+    if (CASE_FILTER.size > 0 && !CASE_FILTER.has(id)) {
+      return;
+    }
+
     const startedAt = Date.now();
     try {
       const detail = await fn();
@@ -356,7 +375,7 @@ int main() {
     await gotoPath("/");
     await page.locator("#landing-problems-link").click();
     await page.waitForLoadState("domcontentloaded");
-    assert(new URL(page.url()).pathname === "/problems.html", `home problem entry went to ${page.url()}`);
+    assert(currentPath() === "/problems.html", `home problem entry went to ${page.url()}`);
     await waitForText("#problem-list", "A+B Problem", 15000);
     await page.locator('a[href="/problem.html?id=1"]').click();
     await waitForText("#problem-title", "A+B Problem", 15000);

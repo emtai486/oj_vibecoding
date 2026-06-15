@@ -1,40 +1,44 @@
 # Web 自动化测试总结
 
-## 最新状态总览（2026-06-13）
+## 最新状态总览（2026-06-15）
 
 ### 当前结论
 
 - Web 自动化用例总数：`38`
-- 当前已确认通过：`26`
-- 当前未完成或仍有问题：`12`
+- 当前已确认通过：`37`
+- 当前未完成或仍有问题：`1`
 - 第一轮历史结果是 `24` 通过、`14` 失败；本轮新增确认通过：
   - `WEB-003`：未登录用户可访问题目列表。
   - `WEB-022`：不存在题目详情页显示错误状态。
+  - `WEB-014`、`WEB-015`、`WEB-016`、`WEB-017`：失败类判题页面展示已通过。
+  - `WEB-019`、`WEB-020`、`WEB-021`：超时、内存超限、输出超限页面展示已通过。
+  - `WEB-030`：新增题目隐藏测试用例判题已通过。
+  - `WEB-032`：删除后详情页不可访问已通过。
+  - `WEB-035`：前台退出后详情页提交状态已通过。
+  - `WEB-038`：浏览器后退/前进详情页稳定性已通过。
 
 ### 当前已确认通过用例
 
 ```text
 WEB-001, WEB-002, WEB-003, WEB-004, WEB-005, WEB-006,
 WEB-007, WEB-008, WEB-009, WEB-010,
-WEB-011, WEB-012, WEB-013, WEB-018,
-WEB-022, WEB-023, WEB-024, WEB-025, WEB-026, WEB-027,
-WEB-028, WEB-029, WEB-031,
-WEB-033, WEB-034, WEB-036
+WEB-011, WEB-012, WEB-013, WEB-014, WEB-015, WEB-016,
+WEB-017, WEB-018, WEB-019, WEB-020, WEB-021, WEB-022,
+WEB-023, WEB-024, WEB-025, WEB-026, WEB-027, WEB-028,
+WEB-029, WEB-030, WEB-031, WEB-032,
+WEB-033, WEB-034, WEB-035, WEB-036, WEB-038
 ```
 
 ### 当前未完成或仍需回归用例
 
 ```text
-WEB-014, WEB-015, WEB-016, WEB-017,
-WEB-019, WEB-020, WEB-021, WEB-030,
-WEB-032, WEB-035, WEB-037, WEB-038
+WEB-037
 ```
 
 说明：
 
-- `WEB-014` 到 `WEB-017`、`WEB-019` 到 `WEB-021`、`WEB-030` 的后端提交响应已经恢复具体 `status_text`，但页面级展示尚未稳定完成回归，因此仍列为未完成。
-- `WEB-032` 需要重新创建临时题目、删除后访问详情页，尚未完成完整回归。
-- `WEB-035`、`WEB-037`、`WEB-038` 依赖未登录题库策略修复后的完整页面流程，尚未完成完整回归。
+- `WEB-014` 到 `WEB-017`、`WEB-019` 到 `WEB-021`、`WEB-030`、`WEB-032`、`WEB-035`、`WEB-038` 已由 Ubuntu 侧目标回归脚本确认通过。
+- `WEB-037` 本轮失败原因是回归脚本自身在 `playwright-cli run-code` 环境中使用了不可用的 `URL` 全局对象，失败信息为 `URL is not defined`。该脚本问题已在 Windows 工作区修复，需同步到 Ubuntu 后单独复跑 `WEB-037`。
 
 ### 2026-06-15 接手记录
 
@@ -106,6 +110,50 @@ WEB-032, WEB-035, WEB-037, WEB-038
   ```
 
 - 当前唯一剩余阻塞：将 Windows 工作区的 `scripts/web_targeted_regression.playwright.js` 同步到 Ubuntu 的 `~/project/scripts/web_targeted_regression.playwright.js`，然后重新执行目标回归脚本。
+
+### 2026-06-15 目标回归脚本执行结果
+
+- Ubuntu 侧已同步并执行 `scripts/web_targeted_regression.playwright.js`。
+- 前置接口检查通过：`/health`、`/api/problems`、`/api/user/login` 均返回成功。
+- 运行结果：
+
+  ```text
+  summary.total = 12
+  summary.passed = 11
+  summary.failed = 1
+  ```
+
+- 已通过：
+
+  ```text
+  WEB-014 Wrong Answer
+  WEB-015 Compile Error
+  WEB-016 Compile Error
+  WEB-017 Wrong Answer
+  WEB-019 Time Limit Exceeded
+  WEB-020 Memory Limit Exceeded
+  WEB-021 Output Limit Exceeded
+  WEB-030 Wrong Answer
+  WEB-032 题目不存在
+  WEB-035 disabled=true, result=登录后提交
+  WEB-038 back/forward kept list and detail renderable
+  ```
+
+- 唯一失败：
+
+  ```text
+  WEB-037 FAIL: URL is not defined
+  ```
+
+  该失败来自回归脚本自身，不是页面功能失败。`playwright-cli run-code` 环境中没有浏览器/Node 风格的全局 `URL`，脚本里 `new URL(page.url()).pathname` 抛错。Windows 工作区已修复为字符串方式解析当前路径，需同步新版脚本到 Ubuntu 后复跑 `WEB-037`。
+
+- 运行后健康检查通过：
+
+  ```json
+  {"data":{"status":"ok"},"message":"ok","success":true}
+  ```
+
+- 临时题目清理结果：`/api/problems` 中无标题包含 `Web Auto Problem` 的残留题目。
 
 ### 本轮已经修复并验证
 
