@@ -1,7 +1,10 @@
 const params = new URLSearchParams(window.location.search);
 const problemId = params.get("id");
-const editor = createCppEditor(document.querySelector("#code-editor"));
-let loggedInUser = null;
+  const editor = createCppEditor(document.querySelector("#code-editor"));
+  let loggedInUser = null;
+
+    const submitButton = document.querySelector("#submit-code");
+  submitButton.disabled = true;
 
 function escapeProblemHtml(value) {
   return String(value)
@@ -53,7 +56,6 @@ function renderProblem(problem) {
 }
 
 function configureSubmitState() {
-  const submitButton = document.querySelector("#submit-code");
   if (!loggedInUser) {
     submitButton.disabled = true;
     setSubmitResult("failed", "登录后提交");
