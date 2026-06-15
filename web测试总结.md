@@ -183,9 +183,10 @@ WEB-033, WEB-034, WEB-035, WEB-036, WEB-037, WEB-038
 
   ```text
   grep -n "new URL\|OJ_WEB_CASES\|currentPath" scripts/web_targeted_regression.playwright.js
-  6:    ((typeof process !== "undefined" && process.env.OJ_WEB_CASES) || "WEB-037")
-  37:  function currentPath() {
-  378:    assert(currentPath() === "/problems.html", `home problem entry went to ${page.url()}`);
+  32:  function currentPath() {
+  43:    if (typeof process !== "undefined" && process.env.OJ_WEB_CASES) {
+  44:      raw = process.env.OJ_WEB_CASES;
+  394:    assert(currentPath() === "/problems.html", `home problem entry went to ${page.url()}`);
   ```
 
   未出现 `new URL`，已包含 `OJ_WEB_CASES` 和 `currentPath`。
