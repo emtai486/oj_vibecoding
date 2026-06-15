@@ -5,8 +5,8 @@
 ### 当前结论
 
 - Web 自动化用例总数：`38`
-- 当前已确认通过：`37`
-- 当前未完成或仍有问题：`1`
+- 当前已确认通过：`38`
+- 当前未完成或仍有问题：`0`
 - 第一轮历史结果是 `24` 通过、`14` 失败；本轮新增确认通过：
   - `WEB-003`：未登录用户可访问题目列表。
   - `WEB-022`：不存在题目详情页显示错误状态。
@@ -15,6 +15,7 @@
   - `WEB-030`：新增题目隐藏测试用例判题已通过。
   - `WEB-032`：删除后详情页不可访问已通过。
   - `WEB-035`：前台退出后详情页提交状态已通过。
+  - `WEB-037`：多页面导航链路已通过。
   - `WEB-038`：浏览器后退/前进详情页稳定性已通过。
 
 ### 当前已确认通过用例
@@ -26,19 +27,19 @@ WEB-011, WEB-012, WEB-013, WEB-014, WEB-015, WEB-016,
 WEB-017, WEB-018, WEB-019, WEB-020, WEB-021, WEB-022,
 WEB-023, WEB-024, WEB-025, WEB-026, WEB-027, WEB-028,
 WEB-029, WEB-030, WEB-031, WEB-032,
-WEB-033, WEB-034, WEB-035, WEB-036, WEB-038
+WEB-033, WEB-034, WEB-035, WEB-036, WEB-037, WEB-038
 ```
 
 ### 当前未完成或仍需回归用例
 
 ```text
-WEB-037
+无
 ```
 
 说明：
 
-- `WEB-014` 到 `WEB-017`、`WEB-019` 到 `WEB-021`、`WEB-030`、`WEB-032`、`WEB-035`、`WEB-038` 已由 Ubuntu 侧目标回归脚本确认通过。
-- `WEB-037` 本轮失败原因是回归脚本自身在 `playwright-cli run-code` 环境中使用了不可用的 `URL` 全局对象，失败信息为 `URL is not defined`。该脚本问题已在 Windows 工作区修复，需同步到 Ubuntu 后单独复跑 `WEB-037`。
+- `WEB-014` 到 `WEB-017`、`WEB-019` 到 `WEB-021`、`WEB-030`、`WEB-032`、`WEB-035`、`WEB-037`、`WEB-038` 已由 Ubuntu 侧目标回归脚本确认通过。
+- `WEB-037` 的 `URL is not defined` 脚本问题已修复，并已在 Ubuntu 侧单独复跑通过。
 
 ### 2026-06-15 接手记录
 
@@ -154,6 +155,54 @@ WEB-037
   ```
 
 - 临时题目清理结果：`/api/problems` 中无标题包含 `Web Auto Problem` 的残留题目。
+
+### 2026-06-15 WEB-037 单用例复跑结果
+
+- Ubuntu 侧脚本确认：
+
+  ```text
+  grep -n "new URL\|OJ_WEB_CASES\|currentPath" scripts/web_targeted_regression.playwright.js
+  6:    ((typeof process !== "undefined" && process.env.OJ_WEB_CASES) || "WEB-037")
+  37:  function currentPath() {
+  378:    assert(currentPath() === "/problems.html", `home problem entry went to ${page.url()}`);
+  ```
+
+  未出现 `new URL`，已包含 `OJ_WEB_CASES` 和 `currentPath`。
+
+- `playwright-cli run-code` 环境确认：该命令把脚本放在独立 `vm` 上下文执行，函数内 `process` 和 `URL` 都是 `undefined`；因此 `new URL(...)` 不能使用，shell 传入的 `OJ_WEB_CASES` 也不能在脚本内直接读取。本轮脚本临时默认过滤为 `WEB-037`，以确保只复跑该用例。
+
+- 同步修复首页入口：未登录状态下 `#landing-problems-link` 和 `#landing-flow-link` 都指向 `/problems.html`，符合“未登录用户可以浏览题库和题目详情，但不能提交代码”的文档预期。
+
+- 前置接口确认通过：
+
+  ```text
+  GET /health -> {"data":{"status":"ok"},"message":"ok","success":true}
+  GET /api/problems -> {"data":[{"difficulty":"easy","id":1,"title":"A+B Problem"},{"difficulty":"easy","id":2,"title":"Average Score"}],"message":"ok","success":true}
+  POST /api/user/login -> HTTP 200, {"data":{"id":27,"username":"user1"},"message":"logged in","success":true}
+  ```
+
+- 单用例复跑命令：
+
+  ```bash
+  OJ_WEB_CASES=WEB-037 playwright-cli run-code --filename=scripts/web_targeted_regression.playwright.js
+  ```
+
+- 运行结果：
+
+  ```text
+  summary.total = 1
+  summary.passed = 1
+  summary.failed = 0
+  WEB-037 PASS: home -> problems -> detail -> home -> login/register
+  ```
+
+- 运行后健康检查通过：
+
+  ```json
+  {"data":{"status":"ok"},"message":"ok","success":true}
+  ```
+
+- 当前结论：`WEB-037` 已通过，Web 自动化用例更新为 `38/38` 全部通过。
 
 ### 本轮已经修复并验证
 
@@ -395,7 +444,7 @@ WEB-003, WEB-037, WEB-038
 - `public/js/problem-list.js` 已修改：未登录时仍加载 `GET /api/problems`，只是不展示登录用户的完成状态。
 - Ubuntu 运行服务已加载该修改；浏览器 DOM 检查确认未登录可看到 `A+B Problem` 和 `Average Score`。
 - `WEB-003` 已标记为通过。
-- `WEB-037`、`WEB-038` 仍需补完整导航/前进后退流程回归。
+- 历史状态：当时 `WEB-037`、`WEB-038` 仍需补完整导航/前进后退流程回归；后续已分别通过，见顶部“最新状态总览”。
 
 ### 2. 失败类判题只显示通用 `failed`（后端已解决，页面仍需回归）
 
@@ -496,20 +545,20 @@ WEB-035
 
 1. 未登录题库访问策略已经修复，`WEB-003` 已通过。
 2. `submit_api.cpp` 相关后端响应已经通过重新构建/重启确认生效，失败类提交接口已返回 `status_text`。
-3. 当前仍需在数据库接口稳定后，重点重跑页面级展示：
+3. 历史待办：当时仍需在数据库接口稳定后，重点重跑页面级展示；后续已通过，见顶部“最新状态总览”。
 
 ```text
 WEB-014, WEB-015, WEB-016, WEB-017,
 WEB-019, WEB-020, WEB-021, WEB-030
 ```
 
-4. 不存在题目详情错误状态已经修复，`WEB-022` 已通过；删除后详情页仍需重跑：
+4. 历史待办：不存在题目详情错误状态已经修复，`WEB-022` 已通过；当时删除后详情页仍需重跑，后续已通过。
 
 ```text
 WEB-032
 ```
 
-5. 根据已修复的题库访问策略继续补跑：
+5. 历史待办：根据已修复的题库访问策略继续补跑；后续已通过。
 
 ```text
 WEB-035, WEB-037, WEB-038
@@ -546,7 +595,7 @@ WEB-035, WEB-037, WEB-038
 - 旧阻塞：运行中的服务返回旧版前端 JS。该问题已解决，`WEB-003` 和 `WEB-022` 已通过。
 - 后续验证过程中，`POST /api/user/login` 一度返回 HTTP 500 且响应体为空；同时 `/health` 和 `/api/problems` 正常。需要在 Ubuntu 服务终端查看日志，并确认 MySQL 连接与 `user1/password` 基线数据仍正常。
 
-### 下一步重跑重点
+### 下一步重跑重点（历史状态，已被后续记录覆盖）
 
 同步前端文件并重启服务后，优先重跑：
 
@@ -578,13 +627,13 @@ WEB-019, WEB-020, WEB-021, WEB-030
 
 - 直接请求 `/api/problems/999999999` 返回 HTTP 404，符合不存在题目的接口预期。
 
-### 本地新增修复，待同步到 Ubuntu 后验证
+### 本地新增修复，待同步到 Ubuntu 后验证（历史状态，已被后续记录覆盖）
 
 - 已在当前工作区进一步修改 `public/js/problem-detail.js`：页面脚本启动时先禁用 `#submit-code`，等待 `currentUser()` 完成后再按登录态启用，避免自动化或用户在登录态检查完成前点击提交按钮导致误显示“请先登录”。
 
 该修复尚未同步到 Ubuntu `~/project/public/js/problem-detail.js`，因此页面级提交回归仍可能遇到登录态竞态。
 
-### 当前新增阻塞
+### 当前新增阻塞（历史状态，已被后续记录覆盖）
 
 - 多次回归时发现后端接口出现间歇性 HTTP 500，响应为：
 
@@ -599,7 +648,7 @@ WEB-019, WEB-020, WEB-021, WEB-030
 
 - 这些 500 不是稳定复现；同一接口重试后可能返回 200。因此目前无法稳定完成页面级提交回归，也不能把 `WEB-014` 到 `WEB-021` 的页面展示全部标记为通过。
 
-### 下一步
+### 下一步（历史状态，已被后续记录覆盖）
 
 1. 将当前工作区的 `public/js/problem-detail.js` 再同步一次到 Ubuntu 运行目录，确保提交按钮初始禁用竞态修复生效。
 2. 在 Ubuntu 服务终端观察 `database error` 出现时的标准错误输出。

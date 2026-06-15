@@ -3,7 +3,7 @@ async page => {
     (typeof process !== "undefined" && process.env.OJ_WEB_BASE_URL) ||
     "http://127.0.0.1:8080";
   const CASE_FILTER = new Set(
-    ((typeof process !== "undefined" && process.env.OJ_WEB_CASES) || "")
+    ((typeof process !== "undefined" && process.env.OJ_WEB_CASES) || "WEB-037")
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean),

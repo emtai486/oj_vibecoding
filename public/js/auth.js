@@ -113,8 +113,8 @@ function renderLandingAccess(user) {
       link.href = "/problems.html";
       link.textContent = user.role === "admin" ? "管理员进入题库" : "进入题库";
     } else {
-      link.href = "/login.html?next=%2Fproblems.html";
-      link.textContent = "登录进入题库";
+      link.href = "/problems.html";
+      link.textContent = "进入题库";
     }
   });
 }
