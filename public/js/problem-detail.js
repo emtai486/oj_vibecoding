@@ -1,10 +1,11 @@
 const params = new URLSearchParams(window.location.search);
 const problemId = params.get("id");
-  const editor = createCppEditor(document.querySelector("#code-editor"));
-  let loggedInUser = null;
+const editor = createCppEditor(document.querySelector("#code-editor"));
+const submitButton = document.querySelector("#submit-code");
+let loggedInUser = null;
+let problemLoaded = false;
 
-    const submitButton = document.querySelector("#submit-code");
-  submitButton.disabled = true;
+submitButton.disabled = true;
 
 function escapeProblemHtml(value) {
   return String(value)
@@ -56,6 +57,11 @@ function renderProblem(problem) {
 }
 
 function configureSubmitState() {
+  if (!problemLoaded) {
+    submitButton.disabled = true;
+    return;
+  }
+
   if (!loggedInUser) {
     submitButton.disabled = true;
     setSubmitResult("failed", "登录后提交");
@@ -73,6 +79,7 @@ function configureSubmitState() {
 async function loadProblem() {
   if (!problemId) {
     document.querySelector("#problem-content").textContent = "缺少题目 ID";
+    setSubmitResult("failed", "题目不存在");
     return;
   }
 
@@ -80,11 +87,14 @@ async function loadProblem() {
     const result = await api.getProblem(problemId);
     if (result.success) {
       renderProblem(result.data);
+      problemLoaded = true;
     } else {
-    document.querySelector("#problem-content").textContent = "题目不存在";
-  }
+      document.querySelector("#problem-content").textContent = "题目不存在";
+      setSubmitResult("failed", "题目不存在");
+    }
   } catch {
     document.querySelector("#problem-content").textContent = "加载失败";
+    setSubmitResult("failed", "加载失败");
   }
 }
 
@@ -117,8 +127,8 @@ document.querySelector("#submit-code").addEventListener("click", async () => {
 
 async function initProblemPage() {
   loggedInUser = await currentUser();
-  configureSubmitState();
   await loadProblem();
+  configureSubmitState();
 }
 
 initProblemPage();

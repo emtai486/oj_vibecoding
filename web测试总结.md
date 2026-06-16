@@ -1,12 +1,16 @@
 # Web 自动化测试总结
 
-## 最新状态总览（2026-06-15）
+## 最新状态总览（2026-06-16）
 
 ### 当前结论
 
 - Web 自动化用例总数：`38`
 - 当前已确认通过：`38`
 - 当前未完成或仍有问题：`0`
+- 2026-06-16 最终复跑确认：
+  - `playwright-cli run-code --filename=scripts/web_targeted_regression.playwright.js`：`summary.total = 12`，`summary.passed = 12`，`summary.failed = 0`。
+  - `make deploy-verify-strict`：严格部署验收通过，覆盖 Ubuntu 22.04、非 root、依赖检查、构建、MySQL 初始化、静态资源、本地 HTTP 服务、完整 API 和判题回归。
+  - 临时题目清理确认：`/api/problems` 当前仅包含 `A+B Problem` 和 `Average Score`，无 `Web Auto Problem` 残留。
 - 第一轮历史结果是 `24` 通过、`14` 失败；本轮新增确认通过：
   - `WEB-003`：未登录用户可访问题目列表。
   - `WEB-022`：不存在题目详情页显示错误状态。
