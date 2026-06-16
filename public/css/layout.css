@@ -526,6 +526,27 @@
   padding: 12px;
 }
 
+.submit-detail {
+  grid-column: 1 / -1;
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid rgba(244, 63, 94, 0.24);
+  border-radius: 8px;
+  background: rgba(10, 16, 32, 0.88);
+  color: #fecdd3;
+  padding: 12px;
+  font-family: "Fira Code", "Cascadia Code", Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.submit-detail[hidden] {
+  display: none;
+}
+
 .actions {
   display: flex;
   align-items: center;

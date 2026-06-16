@@ -28,6 +28,7 @@ namespace {
 namespace fs = std::filesystem;
 
 constexpr std::uintmax_t kMaxOutputBytes = 1024 * 1024;
+constexpr std::uintmax_t kMaxDiagnosticBytes = 8192;
 constexpr int kCompileTimeoutMs = 10000;
 constexpr std::uint32_t kCompileMemoryKb = 524288;
 constexpr int kMaxConcurrentJudges = 4;
@@ -118,6 +119,11 @@ struct ProcessResult {
   int signal = 0;
 };
 
+struct TestcaseReport {
+  JudgeResult result = JudgeResult::SystemError;
+  std::string detail;
+};
+
 bool write_text(const fs::path& path, const std::string& content) {
   std::ofstream output(path, std::ios::binary);
   if (!output) {
@@ -155,6 +161,36 @@ bool file_within_limit(const fs::path& path, std::uintmax_t max_bytes) {
   std::error_code error;
   const auto size = fs::file_size(path, error);
   return !error && size <= max_bytes;
+}
+
+std::string truncate_text(std::string value, std::size_t max_length) {
+  if (value.size() <= max_length) {
+    return value;
+  }
+
+  value.resize(max_length);
+  value += "\n... output truncated ...";
+  return value;
+}
+
+std::string process_failure_detail(const ProcessResult& result,
+                                   const fs::path& error_path) {
+  std::string detail = read_text(error_path, kMaxDiagnosticBytes);
+  if (!detail.empty()) {
+    return truncate_text(std::move(detail),
+                         static_cast<std::size_t>(kMaxDiagnosticBytes));
+  }
+
+  if (result.timed_out) {
+    return "process timed out";
+  }
+  if (result.signaled) {
+    return "process terminated by signal " + std::to_string(result.signal);
+  }
+  if (result.exit_code >= 0) {
+    return "process exited with code " + std::to_string(result.exit_code);
+  }
+  return "process failed";
 }
 
 void redirect_fd(const fs::path& path, int flags, int target_fd) {
@@ -275,14 +311,15 @@ bool looks_like_memory_limit(const ProcessResult& result,
          error.find("cannot allocate memory") != std::string::npos;
 }
 
-JudgeResult run_testcase(const fs::path& dir, const model::Problem& problem,
-                         const model::Testcase& testcase, std::size_t index) {
+TestcaseReport run_testcase(const fs::path& dir, const model::Problem& problem,
+                            const model::Testcase& testcase,
+                            std::size_t index) {
   const fs::path input_path = dir / ("input-" + std::to_string(index) + ".txt");
   const fs::path output_path =
       dir / ("output-" + std::to_string(index) + ".txt");
   const fs::path error_path = dir / ("error-" + std::to_string(index) + ".txt");
   if (!write_text(input_path, testcase.input)) {
-    return JudgeResult::SystemError;
+    return {JudgeResult::SystemError, "failed to write testcase input"};
   }
 
   const ProcessSpec spec{
@@ -298,24 +335,30 @@ JudgeResult run_testcase(const fs::path& dir, const model::Problem& problem,
 
   const auto result = run_process(spec);
   if (result.timed_out) {
-    return JudgeResult::TimeLimitExceeded;
+    return {JudgeResult::TimeLimitExceeded,
+            "program exceeded time limit of " +
+                std::to_string(problem.time_limit_ms) + " ms"};
   }
   if (result.output_limit_exceeded ||
       !file_within_limit(output_path, kMaxOutputBytes)) {
-    return JudgeResult::OutputLimitExceeded;
+    return {JudgeResult::OutputLimitExceeded,
+            "program output exceeded 1048576 bytes"};
   }
   if (looks_like_memory_limit(result, error_path)) {
-    return JudgeResult::MemoryLimitExceeded;
+    return {JudgeResult::MemoryLimitExceeded,
+            "program exceeded memory limit of " +
+                std::to_string(problem.memory_limit_kb) + " KB"};
   }
   if (!result.exited_ok) {
-    return JudgeResult::RuntimeError;
+    return {JudgeResult::RuntimeError,
+            process_failure_detail(result, error_path)};
   }
 
   const std::string output = read_text(output_path, kMaxOutputBytes);
   if (!compare_output(output, testcase.expected_output, problem.compare_mode)) {
-    return JudgeResult::WrongAnswer;
+    return {JudgeResult::WrongAnswer, ""};
   }
-  return JudgeResult::Passed;
+  return {JudgeResult::Passed, ""};
 }
 
 }  // namespace
@@ -373,31 +416,34 @@ JudgeReport JudgeService::judge(
     const std::vector<model::Testcase>& hidden_testcases,
     const std::string& code) {
   if (code.empty()) {
-    return {JudgeResult::CompileError, 0};
+    return {JudgeResult::CompileError, 0, "source code is empty"};
   }
   if (hidden_testcases.empty()) {
-    return {JudgeResult::SystemError, 0};
+    return {JudgeResult::SystemError, 0, "problem has no hidden testcases"};
   }
 
   JudgeSlot slot;
   TempDirectory temp;
   if (!write_text(temp.path() / "main.cpp", code)) {
-    return {JudgeResult::SystemError, 0};
+    return {JudgeResult::SystemError, 0, "failed to write source file"};
   }
 
   const auto compile_result = compile_code(temp.path());
+  const fs::path compile_error_path = temp.path() / "compile.err";
   if (!compile_result.exited_ok) {
-    return {JudgeResult::CompileError, 0};
+    return {JudgeResult::CompileError, 0,
+            process_failure_detail(compile_result, compile_error_path)};
   }
 
   for (std::size_t i = 0; i < hidden_testcases.size(); ++i) {
-    const auto result = run_testcase(temp.path(), problem, hidden_testcases[i], i);
-    if (!judge_result_passed(result)) {
-      return {result, i + 1};
+    const auto report =
+        run_testcase(temp.path(), problem, hidden_testcases[i], i);
+    if (!judge_result_passed(report.result)) {
+      return {report.result, i + 1, report.detail};
     }
   }
 
-  return {JudgeResult::Passed, hidden_testcases.size()};
+  return {JudgeResult::Passed, hidden_testcases.size(), ""};
 }
 
 }  // namespace oj::judge

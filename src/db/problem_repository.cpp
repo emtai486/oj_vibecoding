@@ -151,6 +151,82 @@ bool ProblemRepository::create_with_testcases(
   return true;
 }
 
+bool ProblemRepository::update_with_testcases(
+    std::uint64_t id, const model::Problem& problem,
+    const std::vector<model::Testcase>& testcases, bool* updated,
+    std::string* error) {
+  if (updated != nullptr) {
+    *updated = false;
+  }
+
+  if (!client_.execute("START TRANSACTION", error)) {
+    return false;
+  }
+
+  const std::string update_problem =
+      "UPDATE problems SET title = '" + client_.escape(problem.title) +
+      "', difficulty = '" + client_.escape(problem.difficulty) +
+      "', description = '" + client_.escape(problem.description) +
+      "', input_format = '" + client_.escape(problem.input_format) +
+      "', output_format = '" + client_.escape(problem.output_format) +
+      "', sample_input = '" + client_.escape(problem.sample_input) +
+      "', sample_output = '" + client_.escape(problem.sample_output) +
+      "', time_limit_ms = " + std::to_string(problem.time_limit_ms) +
+      ", memory_limit_kb = " + std::to_string(problem.memory_limit_kb) +
+      ", compare_mode = '" + client_.escape(problem.compare_mode) +
+      "' WHERE id = " + std::to_string(id);
+
+  QueryResult result;
+  if (!client_.query(update_problem, &result, error)) {
+    (void)client_.execute("ROLLBACK", nullptr);
+    return false;
+  }
+
+  if (result.affected_rows == 0) {
+    QueryResult existing;
+    if (!client_.query("SELECT id FROM problems WHERE id = " +
+                           std::to_string(id) + " LIMIT 1",
+                       &existing, error)) {
+      (void)client_.execute("ROLLBACK", nullptr);
+      return false;
+    }
+    if (existing.rows.empty()) {
+      (void)client_.execute("ROLLBACK", nullptr);
+      return true;
+    }
+  }
+
+  if (!client_.execute("DELETE FROM testcases WHERE problem_id = " +
+                           std::to_string(id),
+                       error)) {
+    (void)client_.execute("ROLLBACK", nullptr);
+    return false;
+  }
+
+  for (const auto& testcase : testcases) {
+    const std::string insert_testcase =
+        "INSERT INTO testcases (problem_id, `input`, expected_output, "
+        "is_sample) VALUES (" +
+        std::to_string(id) + ", '" + client_.escape(testcase.input) + "', '" +
+        client_.escape(testcase.expected_output) + "', " +
+        (testcase.is_sample ? "TRUE" : "FALSE") + ")";
+    if (!client_.execute(insert_testcase, error)) {
+      (void)client_.execute("ROLLBACK", nullptr);
+      return false;
+    }
+  }
+
+  if (!client_.execute("COMMIT", error)) {
+    (void)client_.execute("ROLLBACK", nullptr);
+    return false;
+  }
+
+  if (updated != nullptr) {
+    *updated = true;
+  }
+  return true;
+}
+
 bool ProblemRepository::delete_by_id(std::uint64_t id, bool* deleted,
                                      std::string* error) {
   if (deleted != nullptr) {

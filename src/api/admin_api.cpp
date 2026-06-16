@@ -4,6 +4,7 @@
 #include "auth/password.h"
 #include "db/admin_repository.h"
 #include "db/problem_repository.h"
+#include "db/testcase_repository.h"
 #include "model/problem.h"
 #include "model/testcase.h"
 #include "util/json_response.h"
@@ -189,6 +190,46 @@ oj::util::json::Value problem_created_json(std::uint64_t id,
   };
 }
 
+oj::util::json::Value testcase_json(const model::Testcase& testcase) {
+  return oj::util::json::Value::Object{
+      {"id", static_cast<std::int64_t>(testcase.id)},
+      {"input", testcase.input},
+      {"expected_output", testcase.expected_output},
+      {"is_sample", testcase.is_sample},
+  };
+}
+
+oj::util::json::Value testcases_json(
+    const std::vector<model::Testcase>& testcases) {
+  oj::util::json::Value::Array data;
+  data.reserve(testcases.size());
+  for (const auto& testcase : testcases) {
+    data.push_back(testcase_json(testcase));
+  }
+  return oj::util::json::Value(std::move(data));
+}
+
+oj::util::json::Value admin_problem_json(
+    const model::Problem& problem,
+    const std::vector<model::Testcase>& samples,
+    const std::vector<model::Testcase>& hidden_testcases) {
+  return oj::util::json::Value::Object{
+      {"id", static_cast<std::int64_t>(problem.id)},
+      {"title", problem.title},
+      {"difficulty", problem.difficulty},
+      {"description", problem.description},
+      {"input_format", problem.input_format},
+      {"output_format", problem.output_format},
+      {"sample_input", problem.sample_input},
+      {"sample_output", problem.sample_output},
+      {"time_limit_ms", static_cast<std::int64_t>(problem.time_limit_ms)},
+      {"memory_limit_kb", static_cast<std::int64_t>(problem.memory_limit_kb)},
+      {"compare_mode", problem.compare_mode},
+      {"samples", testcases_json(samples)},
+      {"hidden_testcases", testcases_json(hidden_testcases)},
+  };
+}
+
 }  // namespace
 
 void register_admin_routes(httplib::Server& server,
@@ -311,6 +352,108 @@ void register_admin_routes(httplib::Server& server,
                                        "created",
                                        httplib::StatusCode::Created_201);
               });
+
+  server.Get(R"(/api/admin/problems/(\d+))",
+             [mysql_pool, sessions](const httplib::Request& request,
+                                    httplib::Response& response) {
+               if (!require_admin(request, response, sessions)) {
+                 return;
+               }
+
+               const auto id =
+                   static_cast<std::uint64_t>(std::stoull(request.matches[1]));
+               db::PooledMySqlClient client;
+               if (!acquire_db(mysql_pool, request, response, &client)) {
+                 return;
+               }
+
+               db::ProblemRepository problem_repository(*client);
+               std::optional<model::Problem> problem;
+               std::string error;
+               if (!problem_repository.find_by_id(id, &problem, &error)) {
+                 send_database_error(request, response, "find problem", error);
+                 return;
+               }
+
+               if (!problem.has_value()) {
+                 oj::util::send_error(response,
+                                      httplib::StatusCode::NotFound_404,
+                                      "not found");
+                 return;
+               }
+
+               db::TestcaseRepository testcase_repository(*client);
+               std::vector<model::Testcase> samples;
+               if (!testcase_repository.list_for_problem(id, true, &samples,
+                                                         &error)) {
+                 send_database_error(request, response, "list sample testcases",
+                                     error);
+                 return;
+               }
+
+               std::vector<model::Testcase> hidden_testcases;
+               if (!testcase_repository.list_for_problem(id, false,
+                                                         &hidden_testcases,
+                                                         &error)) {
+                 send_database_error(request, response,
+                                     "list hidden testcases", error);
+                 return;
+               }
+
+               oj::util::send_success(
+                   response,
+                   admin_problem_json(*problem, samples, hidden_testcases));
+             });
+
+  server.Put(R"(/api/admin/problems/(\d+))",
+             [mysql_pool, sessions](const httplib::Request& request,
+                                    httplib::Response& response) {
+               if (!require_admin(request, response, sessions)) {
+                 return;
+               }
+
+               oj::util::json::Value body;
+               if (!oj::util::parse_json_body(request, &body, response)) {
+                 return;
+               }
+
+               model::Problem problem;
+               std::vector<model::Testcase> testcases;
+               if (!parse_problem_payload(body, &problem, &testcases)) {
+                 oj::util::send_error(response,
+                                      httplib::StatusCode::BadRequest_400,
+                                      "invalid problem");
+                 return;
+               }
+
+               const auto id =
+                   static_cast<std::uint64_t>(std::stoull(request.matches[1]));
+               db::PooledMySqlClient client;
+               if (!acquire_db(mysql_pool, request, response, &client)) {
+                 return;
+               }
+
+               db::ProblemRepository repository(*client);
+               bool updated = false;
+               std::string error;
+               if (!repository.update_with_testcases(id, problem, testcases,
+                                                     &updated, &error)) {
+                 send_database_error(request, response, "update problem",
+                                     error);
+                 return;
+               }
+
+               if (!updated) {
+                 oj::util::send_error(response,
+                                      httplib::StatusCode::NotFound_404,
+                                      "not found");
+                 return;
+               }
+
+               oj::util::send_success(response,
+                                      problem_created_json(id, problem),
+                                      "updated");
+             });
 
   server.Delete(R"(/api/admin/problems/(\d+))",
                 [mysql_pool, sessions](const httplib::Request& request,

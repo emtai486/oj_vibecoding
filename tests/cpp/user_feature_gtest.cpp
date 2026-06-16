@@ -247,9 +247,11 @@ TEST(JudgeServiceTest, RejectsCompilationErrorsAndCleansTempDirectory) {
   const auto tests = one_hidden_test();
   const auto before = judge_temp_children();
 
-  EXPECT_EQ(judge_result(judge_service, problem, tests,
-                         "int main( { return 0; }"),
-            oj::judge::JudgeResult::CompileError);
+  const auto report =
+      judge_service.judge(problem, tests, "int main( { return 0; }");
+  EXPECT_EQ(report.result, oj::judge::JudgeResult::CompileError);
+  EXPECT_NE(report.detail.find("error:"), std::string::npos);
+  EXPECT_NE(report.detail.find("main.cpp"), std::string::npos);
   EXPECT_EQ(judge_temp_children(), before);
 }
 

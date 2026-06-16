@@ -44,6 +44,7 @@ async function loadAdminProblems() {
         <td>
           <div class="table-actions">
             <a class="button-link button-secondary table-action" href="/problem.html?id=${encodeURIComponent(problem.id)}">练习</a>
+            <a class="button-link button-secondary table-action" href="/admin/new-problem.html?id=${encodeURIComponent(problem.id)}">编辑</a>
             <button class="danger-button table-action" data-delete-id="${problem.id}" type="button">删除</button>
           </div>
         </td>
@@ -116,10 +117,88 @@ function parseTestcaseJson(raw) {
   }));
 }
 
+function compactTestcases(testcases) {
+  return (testcases || []).map((item) => ({
+    input: String(item.input ?? ""),
+    expected_output: String(item.expected_output ?? ""),
+  }));
+}
+
+function setProblemFormValue(form, name, value) {
+  const field = form.elements[name];
+  if (field) {
+    field.value = value ?? "";
+  }
+}
+
+async function loadProblemForEdit(form, problemId) {
+  const message = document.querySelector("#new-problem-message");
+  message.textContent = "正在加载题目";
+
+  const result = await api.request(`/api/admin/problems/${encodeURIComponent(problemId)}`);
+  if (!result.success) {
+    if (result.message === "unauthorized") {
+      window.location.href = "/admin/login.html";
+      return false;
+    }
+    message.textContent = result.message || "加载失败";
+    return false;
+  }
+
+  const problem = result.data;
+  setProblemFormValue(form, "title", problem.title);
+  setProblemFormValue(form, "difficulty", problem.difficulty);
+  setProblemFormValue(form, "compare_mode", problem.compare_mode);
+  setProblemFormValue(form, "description", problem.description);
+  setProblemFormValue(form, "input_format", problem.input_format);
+  setProblemFormValue(form, "output_format", problem.output_format);
+  setProblemFormValue(form, "sample_input", problem.sample_input);
+  setProblemFormValue(form, "sample_output", problem.sample_output);
+  setProblemFormValue(form, "time_limit_ms", problem.time_limit_ms);
+  setProblemFormValue(form, "memory_limit_kb", problem.memory_limit_kb);
+  setProblemFormValue(
+    form,
+    "hidden_testcases",
+    JSON.stringify(compactTestcases(problem.hidden_testcases), null, 2),
+  );
+  message.textContent = "";
+  return true;
+}
+
 function bindNewProblem() {
   const form = document.querySelector("#new-problem-form");
   if (!form) {
     return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const problemId = params.get("id");
+  const isEdit = Boolean(problemId);
+  const title = document.querySelector("#problem-form-title");
+  const hint = document.querySelector("#problem-form-hint");
+  const submitButton = form.querySelector('button[type="submit"]');
+  if (isEdit) {
+    document.title = "编辑题目";
+    if (title) {
+      title.textContent = "编辑题目";
+    }
+    if (hint) {
+      hint.textContent = "修改题面、样例与隐藏用例后，保存会立即影响后续判题。";
+    }
+    if (submitButton) {
+      submitButton.textContent = "保存修改";
+      submitButton.disabled = true;
+    }
+    loadProblemForEdit(form, problemId).then((loaded) => {
+      if (submitButton) {
+        submitButton.disabled = !loaded;
+      }
+    }).catch(() => {
+      document.querySelector("#new-problem-message").textContent = "加载失败";
+      if (submitButton) {
+        submitButton.disabled = true;
+      }
+    });
   }
 
   form.addEventListener("submit", async (event) => {
@@ -134,7 +213,9 @@ function bindNewProblem() {
         expected_output: payload.sample_output,
       }];
       payload.hidden_testcases = parseTestcaseJson(payload.hidden_testcases);
-      const result = await api.post("/api/admin/problems", payload);
+      const result = isEdit
+        ? await api.put(`/api/admin/problems/${encodeURIComponent(problemId)}`, payload)
+        : await api.post("/api/admin/problems", payload);
       message.textContent = result.message;
       if (result.success) {
         window.location.href = "/admin/index.html";

@@ -73,15 +73,19 @@ bool has_submit_session(const httplib::Request& request,
 }
 
 oj::util::json::Value submit_result_json(
-    judge::JudgeResult result,
-    std::optional<std::size_t> testcase_index = std::nullopt) {
+    const judge::JudgeReport& report) {
   oj::util::json::Value::Object data{
-      {"result", judge::judge_result_passed(result) ? "passed" : "failed"},
-      {"status", judge::judge_result_code(result)},
-      {"status_text", judge::judge_result_text(result)},
+      {"result", judge::judge_result_passed(report.result) ? "passed"
+                                                           : "failed"},
+      {"status", judge::judge_result_code(report.result)},
+      {"status_text", judge::judge_result_text(report.result)},
   };
-  if (testcase_index.has_value() && *testcase_index > 0) {
-    data["testcase"] = static_cast<std::int64_t>(*testcase_index);
+  if (report.testcase_index > 0 &&
+      !judge::judge_result_passed(report.result)) {
+    data["testcase"] = static_cast<std::int64_t>(report.testcase_index);
+  }
+  if (!report.detail.empty()) {
+    data["detail"] = report.detail;
   }
   return data;
 }
@@ -112,7 +116,9 @@ void register_submit_routes(httplib::Server& server,
                     code->empty()) {
                   oj::util::send_success(response,
                                          submit_result_json(
-                                             judge::JudgeResult::CompileError),
+                                             {judge::JudgeResult::CompileError,
+                                              0,
+                                              "source code is empty"}),
                                          "compile_error");
                   return;
                 }
@@ -133,7 +139,9 @@ void register_submit_routes(httplib::Server& server,
                 if (!problem.has_value()) {
                   oj::util::send_success(response,
                                          submit_result_json(
-                                             judge::JudgeResult::SystemError),
+                                             {judge::JudgeResult::SystemError,
+                                              0,
+                                              "problem not found"}),
                                          "system_error");
                   return;
                 }
@@ -154,15 +162,13 @@ void register_submit_routes(httplib::Server& server,
                 const auto status = judge::judge_result_code(report.result);
                 if (judge::judge_result_passed(report.result)) {
                   oj::util::send_success(response,
-                                         submit_result_json(report.result),
+                                         submit_result_json(report),
                                          "accepted");
                   return;
                 }
 
                 oj::util::send_success(
-                    response,
-                    submit_result_json(report.result, report.testcase_index),
-                    status);
+                    response, submit_result_json(report), status);
               });
 }
 

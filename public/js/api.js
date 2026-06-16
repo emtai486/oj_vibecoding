@@ -34,6 +34,13 @@ const api = {
     });
   },
 
+  put(path, body) {
+    return this.request(path, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+  },
+
   delete(path) {
     return this.request(path, {
       method: "DELETE",

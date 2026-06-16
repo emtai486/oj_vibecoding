@@ -20,6 +20,9 @@ class ProblemRepository {
   bool create_with_testcases(const model::Problem& problem,
                              const std::vector<model::Testcase>& testcases,
                              std::uint64_t* id, std::string* error);
+  bool update_with_testcases(std::uint64_t id, const model::Problem& problem,
+                             const std::vector<model::Testcase>& testcases,
+                             bool* updated, std::string* error);
   bool delete_by_id(std::uint64_t id, bool* deleted, std::string* error);
 
  private:

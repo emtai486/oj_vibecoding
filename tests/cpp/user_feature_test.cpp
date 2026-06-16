@@ -179,12 +179,22 @@ void test_user_feature_sources(const fs::path& root) {
                   "admin API should expose logout");
   expect_contains(admin_api, "/api/admin/problems",
                   "admin API should expose problem creation");
+  expect_contains(admin_api,
+                  R"route(server.Get(R"(/api/admin/problems/(\d+))")route",
+                  "admin API should expose problem edit detail");
+  expect_contains(admin_api,
+                  R"route(server.Put(R"(/api/admin/problems/(\d+))")route",
+                  "admin API should expose problem update");
   expect_contains(admin_api, "oj_admin_session",
                   "admin API should use an admin session cookie");
   expect_contains(admin_api, "delete_by_id",
                   "admin API should delete problems");
   expect_contains(problem_repository, "INSERT INTO testcases",
                   "admin problem creation should persist testcases");
+  expect_contains(problem_repository, "update_with_testcases",
+                  "problem repository should support updating problems");
+  expect_contains(problem_repository, "DELETE FROM testcases WHERE problem_id",
+                  "problem update should replace stale testcases");
   expect_contains(problem_repository, "DELETE FROM problems WHERE id",
                   "problem repository should physically delete problems");
   expect_contains(judge_service, "TempDirectory",
@@ -195,6 +205,10 @@ void test_user_feature_sources(const fs::path& root) {
                   "judge service should compile with g++");
   expect_contains(judge_service, "compile_code(temp.path())",
                   "judge service should capture compile success or failure");
+  expect_contains(judge_service, "process_failure_detail",
+                  "judge service should return diagnostic details");
+  expect_contains(judge_service, "compile.err",
+                  "judge service should expose compiler diagnostics");
   expect_contains(judge_service, "WrongAnswer",
                   "judge service should distinguish wrong answers");
   expect_contains(judge_service, "CompileError",
@@ -229,6 +243,12 @@ void test_user_feature_sources(const fs::path& root) {
                   "admin pages should check admin login state");
   expect_contains(admin_js, "data-delete-id",
                   "admin frontend should expose delete action");
+  expect_contains(admin_js, "/admin/new-problem.html?id=",
+                  "admin frontend should expose edit action");
+  expect_contains(admin_js, "loadProblemForEdit",
+                  "admin frontend should load existing problems for editing");
+  expect_contains(admin_js, "api.put",
+                  "admin frontend should update existing problems");
   expect_contains(admin_js, "hidden_testcases",
                   "new problem form should send hidden testcases");
   expect_contains(storage, "oj_problem_status",
@@ -239,6 +259,8 @@ void test_user_feature_sources(const fs::path& root) {
                   "detail page should disable submit when anonymous");
   expect_contains(problem_detail, "status_text",
                   "detail page should show detailed judge status text");
+  expect_contains(problem_detail, "submitDetailText",
+                  "detail page should show judge diagnostic detail");
   expect_contains(problem_detail, "markSolved",
                   "detail page should mark solved problems after pass");
   expect_contains(problem_list, "currentUser",

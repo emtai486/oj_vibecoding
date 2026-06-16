@@ -27,8 +27,34 @@ function setSubmitResult(kind, text) {
   resultView.textContent = text;
 }
 
+function setSubmitDetail(text) {
+  const detailView = document.querySelector("#submit-detail");
+  if (!detailView) {
+    return;
+  }
+
+  if (!text) {
+    detailView.hidden = true;
+    detailView.textContent = "";
+    return;
+  }
+
+  detailView.hidden = false;
+  detailView.textContent = text;
+}
+
 function submitStatusText(result) {
   return result?.data?.status_text || result?.message || "提交失败";
+}
+
+function submitDetailText(result) {
+  const data = result?.data;
+  if (!data?.detail) {
+    return "";
+  }
+
+  const prefix = data.testcase ? `隐藏用例 #${data.testcase}\n` : "";
+  return `${prefix}${data.detail}`;
 }
 
 function renderProblem(problem) {
@@ -65,14 +91,17 @@ function configureSubmitState() {
   if (!loggedInUser) {
     submitButton.disabled = true;
     setSubmitResult("failed", "登录后提交");
+    setSubmitDetail("");
     return;
   }
 
   submitButton.disabled = false;
   if (solvedStorage.isSolved(problemId)) {
     setSubmitResult("accepted", "已通过");
+    setSubmitDetail("");
   } else {
     setSubmitResult("pending", "等待提交");
+    setSubmitDetail("");
   }
 }
 
@@ -105,6 +134,7 @@ document.querySelector("#submit-code").addEventListener("click", async () => {
   }
 
   setSubmitResult("pending", "提交中");
+  setSubmitDetail("");
 
   try {
     const result = await api.post("/api/submit", {
@@ -115,13 +145,17 @@ document.querySelector("#submit-code").addEventListener("click", async () => {
     if (result.success && result.data?.result === "passed") {
       solvedStorage.markSolved(problemId);
       setSubmitResult("accepted", submitStatusText(result));
+      setSubmitDetail("");
     } else if (!result.success && result.message === "unauthorized") {
       setSubmitResult("failed", "请先登录");
+      setSubmitDetail("");
     } else {
       setSubmitResult("failed", submitStatusText(result));
+      setSubmitDetail(submitDetailText(result));
     }
   } catch {
     setSubmitResult("failed", "提交失败");
+    setSubmitDetail("");
   }
 });
 

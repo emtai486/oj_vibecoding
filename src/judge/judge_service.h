@@ -23,6 +23,7 @@ enum class JudgeResult {
 struct JudgeReport {
   JudgeResult result = JudgeResult::SystemError;
   std::size_t testcase_index = 0;
+  std::string detail;
 };
 
 std::string judge_result_code(JudgeResult result);
